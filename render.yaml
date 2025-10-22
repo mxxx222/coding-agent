@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: coding-agent-web
+    env: node
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NEXT_PUBLIC_API_URL
+        value: https://coding-agent-api.onrender.com
+      - key: NEXT_PUBLIC_APP_NAME
+        value: Coding Agent
+      - key: NEXT_PUBLIC_APP_VERSION
+        value: 1.0.0
+    healthCheckPath: /
+    plan: starter
