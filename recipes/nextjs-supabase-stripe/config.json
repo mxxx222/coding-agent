@@ -1,0 +1,102 @@
+{
+  "name": "Next.js + Supabase + Stripe",
+  "description": "Full-stack web application with Next.js, Supabase backend, and Stripe payments",
+  "version": "1.0.0",
+  "framework": "nextjs",
+  "database": "supabase",
+  "payments": "stripe",
+  "auth": "supabase",
+  "features": [
+    "user-authentication",
+    "database-operations",
+    "payment-processing",
+    "real-time-updates",
+    "file-upload",
+    "email-notifications"
+  ],
+  "dependencies": {
+    "next": "^14.0.0",
+    "react": "^18.0.0",
+    "react-dom": "^18.0.0",
+    "@supabase/supabase-js": "^2.38.0",
+    "stripe": "^14.0.0",
+    "@stripe/stripe-js": "^2.0.0",
+    "tailwindcss": "^3.3.0",
+    "typescript": "^5.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/react": "^18.0.0",
+    "@types/react-dom": "^18.0.0",
+    "eslint": "^8.55.0",
+    "eslint-config-next": "^14.0.0"
+  },
+  "environment": {
+    "NEXT_PUBLIC_SUPABASE_URL": "your_supabase_url",
+    "NEXT_PUBLIC_SUPABASE_ANON_KEY": "your_supabase_anon_key",
+    "SUPABASE_SERVICE_ROLE_KEY": "your_service_role_key",
+    "STRIPE_SECRET_KEY": "your_stripe_secret_key",
+    "NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY": "your_stripe_publishable_key",
+    "STRIPE_WEBHOOK_SECRET": "your_webhook_secret"
+  },
+  "database_schema": {
+    "users": {
+      "id": "uuid primary key",
+      "email": "text unique",
+      "full_name": "text",
+      "avatar_url": "text",
+      "created_at": "timestamp",
+      "updated_at": "timestamp"
+    },
+    "products": {
+      "id": "uuid primary key",
+      "name": "text",
+      "description": "text",
+      "price": "decimal",
+      "image_url": "text",
+      "created_at": "timestamp"
+    },
+    "orders": {
+      "id": "uuid primary key",
+      "user_id": "uuid references users(id)",
+      "product_id": "uuid references products(id)",
+      "amount": "decimal",
+      "status": "text",
+      "stripe_payment_intent_id": "text",
+      "created_at": "timestamp"
+    }
+  },
+  "api_routes": [
+    "api/auth/callback",
+    "api/products",
+    "api/orders",
+    "api/payments/create-payment-intent",
+    "api/payments/webhook"
+  ],
+  "pages": [
+    "pages/index.tsx",
+    "pages/auth/login.tsx",
+    "pages/auth/signup.tsx",
+    "pages/products/index.tsx",
+    "pages/products/[id].tsx",
+    "pages/orders/index.tsx",
+    "pages/orders/[id].tsx"
+  ],
+  "components": [
+    "components/Header.tsx",
+    "components/Footer.tsx",
+    "components/ProductCard.tsx",
+    "components/OrderSummary.tsx",
+    "components/PaymentForm.tsx"
+  ],
+  "styles": [
+    "styles/globals.css",
+    "tailwind.config.js"
+  ],
+  "deployment": {
+    "platform": "vercel",
+    "database": "supabase",
+    "cdn": "vercel",
+    "monitoring": "vercel-analytics"
+  }
+}
