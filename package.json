@@ -3,6 +3,10 @@
   "version": "1.0.0",
   "description": "Web interface for Coding Agent",
   "private": true,
+  "engines": {
+    "node": "18.x",
+    "npm": "9.x"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
