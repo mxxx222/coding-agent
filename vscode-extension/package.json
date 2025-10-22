@@ -1,0 +1,181 @@
+{
+  "name": "coding-agent",
+  "displayName": "Coding Agent",
+  "description": "AI-powered coding assistant for VS Code",
+  "version": "1.0.0",
+  "publisher": "coding-agent",
+  "engines": {
+    "vscode": "^1.74.0"
+  },
+  "categories": [
+    "Other",
+    "Machine Learning",
+    "Snippets"
+  ],
+  "keywords": [
+    "ai",
+    "code-generation",
+    "refactoring",
+    "testing",
+    "assistant"
+  ],
+  "activationEvents": [
+    "onCommand:coding-agent.initialize",
+    "onCommand:coding-agent.suggestRefactor",
+    "onCommand:coding-agent.generateTest",
+    "onCommand:coding-agent.integrate",
+    "onCommand:coding-agent.explainCode",
+    "onCommand:coding-agent.optimizeCode"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "coding-agent.initialize",
+        "title": "Initialize Coding Agent",
+        "category": "Coding Agent"
+      },
+      {
+        "command": "coding-agent.suggestRefactor",
+        "title": "Suggest Refactoring",
+        "category": "Coding Agent"
+      },
+      {
+        "command": "coding-agent.generateTest",
+        "title": "Generate Tests",
+        "category": "Coding Agent"
+      },
+      {
+        "command": "coding-agent.integrate",
+        "title": "Integrate Services",
+        "category": "Coding Agent"
+      },
+      {
+        "command": "coding-agent.explainCode",
+        "title": "Explain Code",
+        "category": "Coding Agent"
+      },
+      {
+        "command": "coding-agent.optimizeCode",
+        "title": "Optimize Code",
+        "category": "Coding Agent"
+      }
+    ],
+    "menus": {
+      "editor/context": [
+        {
+          "command": "coding-agent.suggestRefactor",
+          "when": "editorHasSelection",
+          "group": "coding-agent"
+        },
+        {
+          "command": "coding-agent.explainCode",
+          "when": "editorHasSelection",
+          "group": "coding-agent"
+        },
+        {
+          "command": "coding-agent.optimizeCode",
+          "when": "editorHasSelection",
+          "group": "coding-agent"
+        }
+      ],
+      "explorer/context": [
+        {
+          "command": "coding-agent.generateTest",
+          "when": "resourceExtname == .ts || resourceExtname == .js || resourceExtname == .py",
+          "group": "coding-agent"
+        }
+      ]
+    },
+    "keybindings": [
+      {
+        "command": "coding-agent.suggestRefactor",
+        "key": "ctrl+shift+r",
+        "mac": "cmd+shift+r",
+        "when": "editorHasSelection"
+      },
+      {
+        "command": "coding-agent.explainCode",
+        "key": "ctrl+shift+e",
+        "mac": "cmd+shift+e",
+        "when": "editorHasSelection"
+      },
+      {
+        "command": "coding-agent.optimizeCode",
+        "key": "ctrl+shift+o",
+        "mac": "cmd+shift+o",
+        "when": "editorHasSelection"
+      }
+    ],
+    "configuration": {
+      "title": "Coding Agent",
+      "properties": {
+        "coding-agent.apiKey": {
+          "type": "string",
+          "default": "",
+          "description": "OpenAI API key for Coding Agent"
+        },
+        "coding-agent.serverUrl": {
+          "type": "string",
+          "default": "http://localhost:8000",
+          "description": "Coding Agent server URL"
+        },
+        "coding-agent.autoSuggest": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable automatic code suggestions"
+        },
+        "coding-agent.maxSuggestions": {
+          "type": "number",
+          "default": 3,
+          "description": "Maximum number of suggestions to show"
+        },
+        "coding-agent.language": {
+          "type": "string",
+          "default": "auto",
+          "description": "Default programming language for analysis"
+        }
+      }
+    },
+    "views": {
+      "explorer": [
+        {
+          "id": "coding-agent-view",
+          "name": "Coding Agent",
+          "when": "coding-agent.initialized"
+        }
+      ]
+    },
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "coding-agent",
+          "title": "Coding Agent",
+          "icon": "$(robot)"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint src --ext ts",
+    "test": "node ./out/test/runTest.js"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.74.0",
+    "@types/node": "16.x",
+    "@types/mocha": "^10.0.1",
+    "@typescript-eslint/eslint-plugin": "^5.45.0",
+    "@typescript-eslint/parser": "^5.45.0",
+    "eslint": "^8.28.0",
+    "typescript": "^4.9.4",
+    "@vscode/test-electron": "^2.2.0"
+  },
+  "dependencies": {
+    "axios": "^1.6.2",
+    "ws": "^8.14.2"
+  }
+}

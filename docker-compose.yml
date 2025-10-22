@@ -1,0 +1,21 @@
+version: '3.9'
+services:
+  api:
+    build: ./server
+    environment:
+      - ENV=development
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+    ports:
+      - '8000:8000'
+    volumes:
+      - ./server:/app
+  web:
+    build:
+      context: ./web-ui
+    command: npm run dev
+    ports:
+      - '3000:3000'
+    volumes:
+      - ./web-ui:/usr/src/app
+    depends_on:
+      - api
