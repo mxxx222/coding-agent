@@ -1,0 +1,13 @@
+{
+  "project": {
+    "name": "codingagent",
+    "framework": "fastapi",
+    "template": "fullstack",
+    "created": "2025-10-22T21:56:43.385Z"
+  },
+  "settings": {
+    "autoFormat": true,
+    "autoTest": false,
+    "costTracking": true
+  }
+}
