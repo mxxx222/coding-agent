@@ -42,7 +42,7 @@ export async function initCommand(
       projectName = answers.projectName;
     }
 
-    const projectPath = path.resolve(projectName);
+    const projectPath = path.resolve(projectName!);
 
     // Check if directory already exists
     if (await fs.pathExists(projectPath)) {
@@ -112,7 +112,7 @@ export async function initCommand(
     const spinner = ora('Setting up project structure...').start();
     
     try {
-      await setupProject(projectPath, framework, template);
+      await setupProject(projectPath, framework!, template!);
       spinner.succeed('Project structure created');
 
       // Initialize git repository
@@ -133,7 +133,7 @@ export async function initCommand(
       // Install dependencies if not skipped
       if (!options.skipInstall) {
         spinner.start('Installing dependencies...');
-        await installDependencies(projectPath, framework);
+        await installDependencies(projectPath, framework!);
         spinner.succeed('Dependencies installed');
       }
 

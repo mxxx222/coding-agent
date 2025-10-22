@@ -31,7 +31,7 @@ export class CodingAgentProvider implements vscode.TreeDataProvider<CodingAgentI
         items.push(new CodingAgentItem(
             isConfigured ? '✓ Configured' : '✗ Not Configured',
             isConfigured ? vscode.TreeItemCollapsibleState.None : vscode.TreeItemCollapsibleState.None,
-            'config',
+            { command: 'codingAgent.configure', title: 'Configure' },
             isConfigured ? 'Coding Agent is properly configured' : 'Click to configure Coding Agent'
         ));
 
@@ -39,7 +39,7 @@ export class CodingAgentProvider implements vscode.TreeDataProvider<CodingAgentI
         items.push(new CodingAgentItem(
             'Server Status',
             vscode.TreeItemCollapsibleState.None,
-            'server',
+            { command: 'codingAgent.checkServer', title: 'Check Server' },
             'Check server connection'
         ));
 
@@ -47,7 +47,7 @@ export class CodingAgentProvider implements vscode.TreeDataProvider<CodingAgentI
         items.push(new CodingAgentItem(
             'Recent Suggestions',
             vscode.TreeItemCollapsibleState.Collapsed,
-            'suggestions',
+            { command: 'codingAgent.viewSuggestions', title: 'View Suggestions' },
             'View recent AI suggestions'
         ));
 
@@ -55,7 +55,7 @@ export class CodingAgentProvider implements vscode.TreeDataProvider<CodingAgentI
         items.push(new CodingAgentItem(
             'Integrations',
             vscode.TreeItemCollapsibleState.Collapsed,
-            'integrations',
+            { command: 'codingAgent.manageIntegrations', title: 'Manage Integrations' },
             'Manage service integrations'
         ));
 
@@ -153,7 +153,7 @@ export class CodingAgentItem extends vscode.TreeItem {
     constructor(
         public readonly label: string,
         public readonly collapsibleState: vscode.TreeItemCollapsibleState,
-        public readonly command?: string,
+        public readonly command?: vscode.Command,
         public readonly tooltip?: string
     ) {
         super(label, collapsibleState);
@@ -162,8 +162,8 @@ export class CodingAgentItem extends vscode.TreeItem {
     }
 
     iconPath = {
-        light: '',
-        dark: ''
+        light: vscode.Uri.file('resources/light/refactor.svg'),
+        dark: vscode.Uri.file('resources/dark/refactor.svg')
     };
 
     contextValue = 'codingAgentItem';

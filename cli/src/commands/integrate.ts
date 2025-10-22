@@ -43,14 +43,14 @@ export async function integrateCommand(
 
     for (const service of services) {
       try {
-        const result = await setupService(service, config, options.dryRun);
+        const result = await setupService(service, config, options.dryRun || false);
         integrationResults.push(result);
       } catch (error) {
         logger.warn(`Failed to setup ${service}: ${error}`);
         integrationResults.push({
           service,
           success: false,
-          error: error.message,
+          error: error instanceof Error ? error.message : String(error),
           files: [],
           dependencies: []
         });

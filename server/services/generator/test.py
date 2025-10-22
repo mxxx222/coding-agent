@@ -2,7 +2,7 @@ from typing import List, Dict, Any
 import openai
 import os
 
-class TestGenerator:
+class TestService:
     def __init__(self):
         self.client = openai.OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
     
