@@ -68,3 +68,4 @@ echo ""
 
 echo "✅ Valmis deployaamaan!"
 echo "   Web UI on täysin valmis Renderiin!"
+

@@ -118,3 +118,4 @@ CMD ["npm", "start"]
 4. Konfiguroi CI/CD (valinnainen)
 
 **Coding Agent Web UI on nyt valmis deployaamaan Renderiin!** 🎉
+

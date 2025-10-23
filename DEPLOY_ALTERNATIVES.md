@@ -82,3 +82,4 @@ Render palvelu on 502 Bad Gateway -tilassa. Tässä vaihtoehtoiset deploy-ratkai
 - **Repository**: https://github.com/mxxx222/coding-agent
 
 **Coding Agent Web UI on valmis deployaamaan mihin tahansa palveluun!** 🚀
+
