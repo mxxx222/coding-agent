@@ -1,41 +1,47 @@
-import { 
-  CodeBracketIcon, 
-  CpuChipIcon, 
-  SparklesIcon, 
+import {
+  CodeBracketIcon,
+  CpuChipIcon,
+  SparklesIcon,
   ShieldCheckIcon,
   BoltIcon,
-  ChartBarIcon
+  ChartBarIcon,
 } from '@heroicons/react/24/outline'
 
 const features = [
   {
-    name: 'AI-Powered Refactoring',
-    description: 'Get intelligent suggestions to improve code quality, performance, and maintainability with advanced AI analysis.',
+    name: 'Industry-Leading AI Refactoring',
+    description:
+      'Experience the most advanced code refactoring AI available. Our proprietary algorithms deliver enterprise-grade code improvements with unmatched accuracy and depth.',
     icon: CodeBracketIcon,
   },
   {
-    name: 'Automated Test Generation',
-    description: 'Generate comprehensive test suites automatically, covering unit tests, integration tests, and edge cases.',
+    name: 'Comprehensive Test Generation',
+    description:
+      'Generate production-ready test suites that exceed industry standards. Coverage includes unit, integration, edge cases, and performance benchmarks.',
     icon: CpuChipIcon,
   },
   {
-    name: 'Smart Code Optimization',
-    description: 'Optimize your code for performance, readability, and best practices with AI-driven recommendations.',
+    name: 'Elite Code Optimization',
+    description:
+      'Achieve peak performance with our state-of-the-art optimization engine. Reduce complexity, eliminate bottlenecks, and maximize efficiency.',
     icon: SparklesIcon,
   },
   {
-    name: 'Security Analysis',
-    description: 'Identify potential security vulnerabilities and get suggestions for secure coding practices.',
+    name: 'Advanced Security Analysis',
+    description:
+      'Military-grade security scanning identifies vulnerabilities before deployment. Stay ahead of threats with proactive security recommendations.',
     icon: ShieldCheckIcon,
   },
   {
-    name: 'Real-time Suggestions',
-    description: 'Get instant feedback and suggestions as you code, integrated directly into your development environment.',
+    name: 'Real-time Premium Intelligence',
+    description:
+      'Get instant, context-aware suggestions from the most sophisticated AI coding assistant. Every recommendation is backed by deep analysis.',
     icon: BoltIcon,
   },
   {
-    name: 'Analytics & Insights',
-    description: 'Track code quality metrics, performance improvements, and development productivity over time.',
+    name: 'Enterprise Analytics & Insights',
+    description:
+      'Monitor code quality metrics, track performance improvements, and measure productivity gains with comprehensive analytics dashboard.',
     icon: ChartBarIcon,
   },
 ]
@@ -45,21 +51,21 @@ export function Features() {
     <div id="features" className="py-24 sm:py-32">
       <div className="mx-auto max-w-7xl px-6 lg:px-8">
         <div className="mx-auto max-w-2xl lg:text-center">
-          <h2 className="text-base font-semibold leading-7 text-primary-600">Everything you need</h2>
-          <p className="mt-2 text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">
-            Powerful AI features for modern development
+          <h2 className="text-sm font-semibold leading-6 text-primary-600">The Gold Standard</h2>
+          <p className="mt-2 text-2xl font-bold tracking-tight text-gray-900 sm:text-3xl">
+            Premium AI Features Setting the Industry Standard
           </p>
-          <p className="mt-6 text-lg leading-8 text-gray-600">
-            Our AI-powered platform provides everything you need to write better code, faster. 
-            From intelligent refactoring to automated testing, we've got you covered.
+          <p className="mt-6 text-base leading-7 text-gray-600 max-w-3xl mx-auto">
+            The most exclusive AI coding intelligence ever developed. Our proprietary algorithms
+            surpass all competitors, delivering perfection that only the world's most elite
+            engineering organizations can achieve.
           </p>
         </div>
         <div className="mx-auto mt-16 max-w-2xl sm:mt-20 lg:mt-24 lg:max-w-none">
           <dl className="grid max-w-xl grid-cols-1 gap-x-8 gap-y-16 lg:max-w-none lg:grid-cols-3">
-            {features.map((feature) => (
+            {features.map(feature => (
               <div key={feature.name} className="flex flex-col">
                 <dt className="flex items-center gap-x-3 text-base font-semibold leading-7 text-gray-900">
-                  <feature.icon className="h-5 w-5 flex-none text-primary-600" aria-hidden="true" />
                   {feature.name}
                 </dt>
                 <dd className="mt-4 flex flex-auto flex-col text-base leading-7 text-gray-600">

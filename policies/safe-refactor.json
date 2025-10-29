@@ -1,0 +1,44 @@
+{
+  "refactoring": {
+    "risk_assessment": {
+      "max_coupling_score": 7,
+      "max_complexity_score": 10,
+      "require_tests": true
+    },
+    "safety_checks": [
+      "no_breaking_changes",
+      "preserve_functionality",
+      "maintain_api_contract"
+    ],
+    "step_by_step": {
+      "max_changes_per_step": 5,
+      "require_approval": false,
+      "create_checkpoint": true
+    },
+    "allowed_patterns": [
+      "extract_method",
+      "extract_class",
+      "rename_variable",
+      "simplify_conditionals",
+      "remove_duplication"
+    ],
+    "forbidden_patterns": [
+      "remove_test",
+      "change_signature",
+      "delete_code",
+      "modify_core_logic"
+    ]
+  },
+  "pr_workflow": {
+    "auto_create_pr": true,
+    "pr_title_template": "refactor: {{summary}}",
+    "pr_body_template": "Automated refactoring with safety checks",
+    "require_review": true,
+    "auto_merge": false
+  },
+  "rollback": {
+    "enable_auto_rollback": true,
+    "test_failure_threshold": 1
+  }
+}
+

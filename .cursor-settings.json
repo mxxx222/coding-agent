@@ -1,0 +1,37 @@
+{
+  "cursor.ai.enabled": true,
+  "cursor.ai.provider": "kilocode",
+  "kilocode.integration": {
+    "cursor": true,
+    "nativeAI": false,
+    "preferKiloCode": true
+  },
+  "kilocode.workflows": {
+    "codeGeneration": {
+      "enabled": true,
+      "model": "gpt-4-turbo",
+      "context": "full-project"
+    },
+    "refactoring": {
+      "enabled": true,
+      "model": "claude-3-opus",
+      "suggestions": true
+    },
+    "testing": {
+      "enabled": true,
+      "model": "gpt-4",
+      "autoGenerate": true
+    },
+    "integration": {
+      "enabled": true,
+      "model": "gpt-4",
+      "components": ["cli", "web-ui", "vscode-extension", "server"]
+    }
+  },
+  "kilocode.cursor": {
+    "chatIntegration": true,
+    "inlineSuggestions": true,
+    "codeActions": true,
+    "debugging": true
+  }
+}

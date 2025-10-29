@@ -1,0 +1,31 @@
+{
+  "apiKeys": {
+    "anthropic": {
+      "apiKey": "YOUR_ANTHROPIC_API_KEY_HERE",
+      "model": "claude-3-opus-20240229",
+      "costPer1MInput": 15,
+      "costPer1MOutput": 75,
+      "bestFor": ["complex_coding", "refactoring", "architecture", "debugging"]
+    },
+    "openai": {
+      "apiKey": "YOUR_OPENAI_API_KEY_HERE", 
+      "model": "gpt-4-turbo-preview",
+      "costPer1MInput": 10,
+      "costPer1MOutput": 30,
+      "bestFor": ["general_coding", "testing", "documentation", "quick_tasks"]
+    },
+    "google": {
+      "apiKey": "YOUR_GOOGLE_API_KEY_HERE",
+      "model": "gemini-2.5-pro",
+      "costPer1MInput": 7,
+      "costPer1MOutput": 21,
+      "bestFor": ["large_context", "simple_tasks", "cost_optimization"]
+    }
+  },
+  "optimization": {
+    "strategy": "cost_performance_balance",
+    "fallbackOrder": ["claude-3-opus", "gpt-4-turbo", "gemini-2.5-pro"],
+    "budgetLimit": 100,
+    "monthlyBudget": 50
+  }
+}

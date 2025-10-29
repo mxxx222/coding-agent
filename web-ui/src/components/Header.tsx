@@ -17,7 +17,10 @@ export function Header() {
 
   return (
     <header className="bg-white shadow-sm">
-      <nav className="mx-auto flex max-w-7xl items-center justify-between p-6 lg:px-8" aria-label="Global">
+      <nav
+        className="mx-auto flex max-w-7xl items-center justify-between p-6 lg:px-8"
+        aria-label="Global"
+      >
         <div className="flex lg:flex-1">
           <Link href="/" className="-m-1.5 p-1.5">
             <span className="sr-only">Coding Agent</span>
@@ -36,11 +39,11 @@ export function Header() {
             onClick={() => setMobileMenuOpen(true)}
           >
             <span className="sr-only">Open main menu</span>
-            <Bars3Icon className="h-6 w-6" aria-hidden="true" />
+            <Bars3Icon className="h-5 w-5" aria-hidden="true" />
           </button>
         </div>
         <div className="hidden lg:flex lg:gap-x-12">
-          {navigation.map((item) => (
+          {navigation.map(item => (
             <Link
               key={item.name}
               href={item.href}
@@ -83,13 +86,13 @@ export function Header() {
                 onClick={() => setMobileMenuOpen(false)}
               >
                 <span className="sr-only">Close menu</span>
-                <XMarkIcon className="h-6 w-6" aria-hidden="true" />
+                <XMarkIcon className="h-5 w-5" aria-hidden="true" />
               </button>
             </div>
             <div className="mt-6 flow-root">
               <div className="-my-6 divide-y divide-gray-500/10">
                 <div className="space-y-2 py-6">
-                  {navigation.map((item) => (
+                  {navigation.map(item => (
                     <Link
                       key={item.name}
                       href={item.href}

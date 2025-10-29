@@ -4,5 +4,5 @@ export default function App() {
       <h1>Coding Agent</h1>
       <p>Welcome to the web UI.</p>
     </div>
-  );
+  )
 }

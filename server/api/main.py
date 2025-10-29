@@ -5,7 +5,7 @@ from fastapi.responses import JSONResponse
 import os
 from dotenv import load_dotenv
 
-from .routes import code, refactor, test, integrate
+from .routes import code, refactor, test, integrate, indexer
 from .middleware.auth import AuthMiddleware
 from .middleware.policy import PolicyMiddleware
 from .middleware.cost_tracker import CostTrackerMiddleware
@@ -50,6 +50,7 @@ app.include_router(code.router, prefix="/api/analyze", tags=["code-analysis"])
 app.include_router(refactor.router, prefix="/api/analyze", tags=["refactoring"])
 app.include_router(test.router, prefix="/api/generate", tags=["test-generation"])
 app.include_router(integrate.router, prefix="/api/integrations", tags=["integrations"])
+app.include_router(indexer.router, prefix="/api/indexer", tags=["indexing"])
 
 # Global exception handler
 @app.exception_handler(Exception)

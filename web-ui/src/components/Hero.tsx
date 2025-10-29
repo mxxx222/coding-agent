@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { Button } from './ui/Button'
-import { ArrowRightIcon, CodeBracketIcon, CpuChipIcon, SparklesIcon } from '@heroicons/react/24/outline'
+import { ArrowRightIcon } from '@heroicons/react/24/outline'
 
 export function Hero() {
   return (
@@ -28,22 +28,21 @@ export function Hero() {
           </div>
         </div>
         <div className="text-center">
-          <h1 className="text-4xl font-bold tracking-tight text-gray-900 sm:text-6xl">
-            AI-Powered Development Assistant
+          <h1 className="text-3xl font-bold tracking-tight text-gray-900 sm:text-5xl">
+            AI-Powered Coding Assistant
           </h1>
-          <p className="mt-6 text-lg leading-8 text-gray-600">
-            Transform your coding workflow with intelligent refactoring, automated test generation, 
-            and smart code optimization. Let AI accelerate your development process.
+          <p className="mt-6 text-base leading-7 text-gray-600 max-w-3xl mx-auto">
+            Get started with intelligent code refactoring, automated testing, and smart optimization. Transform your development workflow with AI assistance.
           </p>
           <div className="mt-10 flex items-center justify-center gap-x-6">
             <Button asChild size="lg">
-              <Link href="/signup">
-                Get started
+              <Link href="#how-it-works">
+                Get Started
                 <ArrowRightIcon className="ml-2 h-4 w-4" />
               </Link>
             </Button>
             <Button variant="outline" asChild size="lg">
-              <Link href="#how-it-works">Learn more</Link>
+              <Link href="#features">Learn More</Link>
             </Button>
           </div>
         </div>

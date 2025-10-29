@@ -1,0 +1,51 @@
+{
+  "security": {
+    "max_request_size": 10485760,
+    "rate_limit": {
+      "requests_per_minute": 60,
+      "burst_limit": 10
+    },
+    "allowed_origins": ["*"],
+    "blocked_patterns": [
+      "rm -rf",
+      "sudo",
+      "chmod 777",
+      "eval(",
+      "exec(",
+      "__import__",
+      "os.system",
+      "subprocess.Popen"
+    ]
+  },
+  "content": {
+    "max_code_length": 100000,
+    "forbidden_imports": [
+      "os.system",
+      "subprocess",
+      "eval",
+      "exec"
+    ],
+    "allowed_languages": [
+      "python",
+      "javascript",
+      "typescript",
+      "java",
+      "go",
+      "rust",
+      "cpp",
+      "c"
+    ]
+  },
+  "cost": {
+    "max_tokens_per_request": 4000,
+    "max_requests_per_hour": 100,
+    "cost_per_token": 0.0001,
+    "budget_per_user": 100
+  },
+  "sandbox": {
+    "timeout": 30,
+    "memory_limit_mb": 512,
+    "cpu_limit_percent": 50
+  }
+}
+

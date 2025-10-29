@@ -1,0 +1,72 @@
+{
+  "project": {
+    "name": "Coding Agent",
+    "description": "Multi-component AI coding assistant with CLI, web UI, VS Code extension, and server",
+    "version": "1.0.0",
+    "type": "multi-component"
+  },
+  "components": {
+    "cli": {
+      "path": "cli/",
+      "language": "typescript",
+      "framework": "node",
+      "description": "Command line interface for coding operations"
+    },
+    "web-ui": {
+      "path": "web-ui/",
+      "language": "typescript",
+      "framework": "nextjs",
+      "description": "Web interface for the coding agent"
+    },
+    "vscode-extension": {
+      "path": "vscode-extension/",
+      "language": "typescript",
+      "framework": "vscode-extension",
+      "description": "VS Code extension for coding assistance"
+    },
+    "server": {
+      "path": "server/",
+      "language": "python",
+      "framework": "fastapi",
+      "description": "Backend API server"
+    }
+  },
+  "ai": {
+    "models": {
+      "primary": "claude-3-opus",
+      "code": "gpt-4-turbo",
+      "refactor": "claude-3-opus",
+      "test": "gpt-4-turbo",
+      "documentation": "gemini-2.5-pro",
+      "debugging": "claude-3-opus"
+    },
+    "costOptimization": {
+      "useGeminiForSimpleTasks": true,
+      "useClaudeForComplexTasks": true,
+      "useGPT4ForBalancedTasks": true
+    },
+    "features": {
+      "codeGeneration": true,
+      "refactoring": true,
+      "testGeneration": true,
+      "integration": true,
+      "documentation": true,
+      "debugging": true
+    }
+  },
+  "workflows": {
+    "development": [
+      "analyze_codebase",
+      "suggest_improvements",
+      "generate_tests",
+      "refactor_code",
+      "integrate_components"
+    ],
+    "maintenance": [
+      "update_dependencies",
+      "fix_bugs",
+      "optimize_performance",
+      "update_documentation"
+    ]
+  }
+}
