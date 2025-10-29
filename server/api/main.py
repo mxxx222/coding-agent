@@ -5,7 +5,7 @@ from fastapi.responses import JSONResponse
 import os
 from dotenv import load_dotenv
 
-from .routes import code, refactor, test, integrate, indexer, notion, deployment, automation, metrics
+from .routes import code, refactor, test, integrate, indexer, notion, deployment, automation, metrics, observability
 from .middleware.auth import AuthMiddleware
 from .middleware.policy import PolicyMiddleware
 from .middleware.cost_tracker import CostTrackerMiddleware
@@ -21,8 +21,8 @@ load_dotenv()
 
 # Initialize Sentry (must be first)
 try:
-    from config.sentry import init_sentry
-    init_sentry()
+    from monitoring.sentry_init import init_sentry
+    # Will be wrapped after app creation
 except ImportError:
     pass
 
@@ -68,6 +68,7 @@ app.include_router(notion.router, prefix="/api/notion", tags=["notion"])
 app.include_router(deployment.router, prefix="/api/deploy", tags=["deployment"])
 app.include_router(automation.router, prefix="/api/automation", tags=["automation"])
 app.include_router(metrics.router, prefix="/api", tags=["metrics"])
+app.include_router(observability.router, tags=["observability"])
 
 # Global exception handler
 @app.exception_handler(Exception)
@@ -109,6 +110,13 @@ async def root():
         "version": "1.0.0",
         "docs": "/api/docs"
     }
+
+# Wrap app with Sentry after all middleware (if configured)
+try:
+    from monitoring.sentry_init import init_sentry
+    app = init_sentry(app)
+except ImportError:
+    pass
 
 # Initialize services on startup
 @app.on_event("startup")

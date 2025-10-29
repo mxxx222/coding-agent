@@ -1,0 +1,154 @@
+name: Observability Integration Tests
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  push:
+    branches: [main, deploy]
+  workflow_dispatch:
+
+jobs:
+  observability-tests:
+    name: Observability Tests
+    runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_DB: codingagent
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          pip install prometheus-client sentry-sdk pytest pytest-asyncio httpx
+          cd server && pip install -r requirements.txt && cd ..
+
+      - name: Setup test environment
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/codingagent
+          REDIS_URL: redis://localhost:6379
+          SENTRY_DSN: ${{ secrets.TEST_SENTRY_DSN }}
+          SENTRY_ENVIRONMENT: test
+        run: |
+          echo "Environment configured"
+
+      - name: Start API server
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/codingagent
+          REDIS_URL: redis://localhost:6379
+          SENTRY_DSN: ${{ secrets.TEST_SENTRY_DSN }}
+          SENTRY_ENVIRONMENT: test
+        run: |
+          cd server
+          python -m uvicorn api.main:app --host 0.0.0.0 --port 8000 &
+          sleep 10
+        continue-on-error: true
+
+      - name: Test metrics endpoint
+        run: |
+          # Wait for server to be ready
+          sleep 15
+          
+          # Test /metrics endpoint
+          response=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8000/api/metrics)
+          echo "Metrics endpoint status: $response"
+          
+          if [ "$response" -eq 200 ]; then
+            echo "✅ Metrics endpoint is working"
+            curl http://localhost:8000/api/metrics | head -20
+          else
+            echo "❌ Metrics endpoint failed"
+            exit 1
+          fi
+
+      - name: Test metrics JSON endpoint
+        run: |
+          response=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8000/api/metrics/json)
+          echo "Metrics JSON endpoint status: $response"
+          
+          if [ "$response" -eq 200 ]; then
+            echo "✅ Metrics JSON endpoint is working"
+          else
+            echo "❌ Metrics JSON endpoint failed"
+            exit 1
+          fi
+
+      - name: Test Sentry integration
+        env:
+          SENTRY_DSN: ${{ secrets.TEST_SENTRY_DSN }}
+        run: |
+          # Test error endpoint (should return 500)
+          response=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8000/api/observability/sentry-test || true)
+          echo "Sentry test endpoint status: $response"
+          
+          if [ "$response" -eq 500 ]; then
+            echo "✅ Sentry test endpoint returned expected error"
+          else
+            echo "⚠️ Sentry test returned $response (expected 500)"
+            # Don't fail if Sentry is not configured
+          fi
+
+      - name: Test metrics collection
+        run: |
+          # Generate some test traffic
+          for i in {1..10}; do
+            curl -s http://localhost:8000/api/observability/metrics-test > /dev/null
+          done
+          
+          # Check if metrics are recorded
+          metrics=$(curl -s http://localhost:8000/api/metrics)
+          
+          if echo "$metrics" | grep -q "http_requests_total"; then
+            echo "✅ Metrics are being collected"
+            echo "$metrics" | grep "http_requests_total" | head -5
+          else
+            echo "❌ Metrics not found"
+            exit 1
+          fi
+
+      - name: Check observability health
+        run: |
+          response=$(curl -s http://localhost:8000/api/observability/health)
+          echo "Observability health: $response"
+          
+          if echo "$response" | grep -q "healthy"; then
+            echo "✅ Observability health check passed"
+          else
+            echo "❌ Observability health check failed"
+            exit 1
+          fi
+
+      - name: Success
+        if: success()
+        run: |
+          echo "✅ All observability tests passed!"
+
