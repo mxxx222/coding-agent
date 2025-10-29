@@ -1,0 +1,29 @@
+#!/bin/bash
+
+# Update hook - runs for each ref being updated
+# More granular than pre-receive
+
+REFNAME=$1
+OLDSHA=$2
+NEWSHA=$3
+
+echo "🔄 Updating ref: $REFNAME"
+
+# Check if branch is protected
+if [[ "$REFNAME" == "refs/heads/main" ]] || [[ "$REFNAME" == "refs/heads/deploy" ]]; then
+    echo "🔒 Protected branch detected"
+    
+    # Check if force push
+    if git merge-base --is-ancestor "$OLDSHA" "$NEWSHA"; then
+        echo "⚠️ Force push detected to protected branch"
+        
+        # Allow only administrators or specific users
+        if [[ "$GIT_USER" != "admin" ]] && [[ "$GIT_USER" != "ci" ]]; then
+            echo "❌ Force push to protected branch denied"
+            exit 1
+        fi
+    fi
+fi
+
+exit 0
+

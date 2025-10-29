@@ -1,0 +1,60 @@
+# Git attributes for security and consistency
+
+# Prevent executables
+*.sh text eol=lf
+*.bat text eol=crlf
+
+# Detect secrets
+*.env text
+*.key text
+*.pem text
+*.p12 text
+*.pfx text
+
+# Python
+*.py text diff=python
+*.py[cod] binary
+
+# JavaScript/TypeScript
+*.js text diff=javascript
+*.jsx text diff=javascript
+*.ts text diff=typescript
+*.tsx text diff=typescript
+*.json text
+
+# Documentation
+*.md text
+*.txt text
+*.rst text
+
+# Configuration
+*.yml text
+*.yaml text
+*.toml text
+*.ini text
+*.conf text
+
+# Docker
+Dockerfile text
+docker-compose*.yml text
+.dockerignore text
+
+# CI/CD
+.github/workflows/*.yml text
+
+# Allow pre-commit hooks
+.githooks/* text eol=lf
+
+# Binary files
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.zip binary
+*.tar.gz binary
+
+# Ensure line endings are consistent
+* text=auto
+

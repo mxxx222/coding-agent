@@ -1,0 +1,95 @@
+#!/bin/bash
+
+# Pre-receive hook for enhanced security
+# This hook runs on the server before accepting pushed commits
+
+echo "🔐 Running pre-receive security checks..."
+
+# Color output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m'
+
+REJECTED=false
+
+# Read all pushed commits
+while read oldrev newrev refname; do
+    # Get list of commits
+    commits=$(git rev-list $oldrev..$newrev)
+    
+    for commit in $commits; do
+        echo -e "${YELLOW}Checking commit: $commit${NC}"
+        
+        # Get files changed in this commit
+        files=$(git diff-tree --no-commit-id --name-only -r $commit)
+        
+        for file in $files; do
+            # Check for common secret patterns
+            content=$(git show $commit:$file 2>/dev/null || true)
+            
+            # Check patterns
+            if echo "$content" | grep -E "(AKIA[0-9A-Z]{16})" > /dev/null 2>&1; then
+                echo -e "${RED}❌ BLOCKED: AWS access key detected in $file${NC}"
+                REJECTED=true
+            fi
+            
+            if echo "$content" | grep -E "(sk_proj_[a-zA-Z0-9_]{32,})" > /dev/null 2>&1; then
+                echo -e "${RED}❌ BLOCKED: OpenAI API key detected in $file${NC}"
+                REJECTED=true
+            fi
+            
+            if echo "$content" | grep -E "(ghp_[a-zA-Z0-9]{36})" > /dev/null 2>&1; then
+                echo -e "${RED}❌ BLOCKED: GitHub token detected in $file${NC}"
+                REJECTED=true
+            fi
+            
+            if echo "$content" | grep -E "(xoxb-[0-9]{10,13}-[0-9]{10,13}-[a-zA-Z0-9]{24,32})" > /dev/null 2>&1; then
+                echo -e "${RED}❌ BLOCKED: Slack bot token detected in $file${NC}"
+                REJECTED=true
+            fi
+            
+            # Check for private keys
+            if echo "$content" | grep -E "BEGIN.*PRIVATE KEY" > /dev/null 2>&1; then
+                echo -e "${RED}❌ BLOCKED: Private key detected in $file${NC}"
+                REJECTED=true
+            fi
+            
+            # Check for credentials files
+            if [[ "$file" =~ \.(env|key|pem|p12)$ ]]; then
+                echo -e "${RED}❌ BLOCKED: Credential file detected: $file${NC}"
+                REJECTED=true
+            fi
+        done
+        
+        # Check commit message
+        commit_msg=$(git log -1 --format=%B $commit)
+        
+        # Warn about potential secrets in commit message
+        if echo "$commit_msg" | grep -E "(password|secret|token|api_key)" > /dev/null 2>&1; then
+            echo -e "${YELLOW}⚠️ WARNING: Potential secret in commit message${NC}"
+        fi
+    done
+done
+
+if [ "$REJECTED" = true ]; then
+    echo -e "${RED}"
+    echo "════════════════════════════════════════"
+    echo "🚫 PUSH REJECTED - Security violation"
+    echo "════════════════════════════════════════"
+    echo ""
+    echo "Your push contains potential secrets or credentials."
+    echo ""
+    echo "To fix this:"
+    echo "1. Remove secrets from your commits"
+    echo "2. Use BFG Repo-Cleaner to remove from history"
+    echo "3. Rotate any exposed credentials"
+    echo ""
+    echo "See SECURITY_GUIDE.md for details."
+    echo -e "${NC}"
+    exit 1
+fi
+
+echo -e "${GREEN}✅ Pre-receive checks passed${NC}"
+exit 0
+

@@ -1,0 +1,44 @@
+#!/bin/bash
+
+# Post-receive hook for notifications and auditing
+# Runs after commits are accepted
+
+echo "📧 Running post-receive actions..."
+
+# Get repository information
+REPO_URL=$(git config --get remote.origin.url)
+REPO_NAME=$(basename -s .git "$REPO_URL")
+
+# Create audit log
+AUDIT_LOG="logs/push-audit-$(date +%Y%m%d).log"
+mkdir -p logs
+
+{
+    echo "════════════════════════════════════════"
+    echo "Push received: $(date)"
+    echo "Repository: $REPO_NAME"
+    echo "════════════════════════════════════════"
+    
+    while read oldrev newrev refname; do
+        echo "Ref: $refname"
+        echo "Old: $oldrev"
+        echo "New: $newrev"
+        
+        # Get commit details
+        git log --pretty=format:"%h - %an <%ae> : %s" $oldrev..$newrev
+        echo ""
+    done
+    
+    echo "════════════════════════════════════════"
+    echo ""
+} >> "$AUDIT_LOG"
+
+echo "✅ Push received and logged"
+echo "📋 Audit log: $AUDIT_LOG"
+
+# Optional: Send notification (requires setup)
+# webhook_url=$WEBHOOK_URL
+# curl -X POST "$webhook_url" \
+#   -H "Content-Type: application/json" \
+#   -d "{\"text\": \"Push received in $REPO_NAME\"}" || true
+

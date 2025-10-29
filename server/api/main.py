@@ -9,6 +9,8 @@ from .routes import code, refactor, test, integrate, indexer, notion, deployment
 from .middleware.auth import AuthMiddleware
 from .middleware.policy import PolicyMiddleware
 from .middleware.cost_tracker import CostTrackerMiddleware
+from .middleware.audit_logger import AuditLoggerMiddleware
+from .middleware.rate_limiter import RateLimiterMiddleware
 from services.llm.openai_client import OpenAIClient
 from services.indexer.vector_store import VectorStore
 from database.schema import init_db
@@ -40,10 +42,12 @@ app.add_middleware(
     allowed_hosts=["*"]
 )
 
-# Custom middleware
-app.add_middleware(AuthMiddleware)
-app.add_middleware(PolicyMiddleware)
-app.add_middleware(CostTrackerMiddleware)
+# Custom middleware (order matters!)
+app.add_middleware(AuditLoggerMiddleware)  # Log all requests first
+app.add_middleware(RateLimiterMiddleware)  # Rate limit before auth
+app.add_middleware(AuthMiddleware)         # Authenticate requests
+app.add_middleware(PolicyMiddleware)       # Apply policies
+app.add_middleware(CostTrackerMiddleware)  # Track costs
 
 # Include routers
 app.include_router(code.router, prefix="/api/analyze", tags=["code-analysis"])
