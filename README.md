@@ -58,7 +58,58 @@ coding-agent integrate supabase stripe
 cd web-ui
 npm install
 npm run dev
+
+# Access at http://localhost:3000
+# Auto-deploy: http://localhost:3000/auto-deploy
 ```
+
+### Automated Notion → Vercel Pipeline
+
+```bash
+# Setup environment variables
+export NOTION_API_KEY="your_notion_token"
+export VERCEL_TOKEN="your_vercel_token"
+
+# Start services
+cd server && python -m uvicorn api.main:app --reload
+cd web-ui && npm run dev
+
+# Use the automation pipeline
+# 1. Go to http://localhost:3000/auto-deploy
+# 2. Select a Notion idea
+# 3. Start the pipeline
+# 4. Get your deployed URL!
+```
+
+### Devcontainer (Recommended)
+
+```bash
+# Open in VS Code with Remote Containers
+code .
+
+# VS Code will prompt to reopen in container
+# Or use: Command Palette → Reopen in Container
+
+# Everything is pre-configured!
+```
+
+## Security
+
+**⚠️ Important**: Never commit secrets to version control!
+
+See [SECURITY_GUIDE.md](SECURITY_GUIDE.md) for:
+- Secret management
+- Pre-commit hooks
+- BFG repo-cleaner
+- Security best practices
+
+## Contributing
+
+See [MERGE_GUIDE.md](MERGE_GUIDE.md) for:
+- Pull request process
+- CI requirements
+- Code review guidelines
+- Merge checklist
 
 ## Development
 

@@ -1,0 +1,34 @@
+#!/bin/bash
+
+# Pre-commit hook to scan for secrets
+
+echo "🔍 Running pre-commit checks..."
+
+# Check for common secret patterns
+SECRET_PATTERNS=(
+    "AKIA[0-9A-Z]{16}"              # AWS Access Key
+    "sk_proj_[a-zA-Z0-9_]{32,}"     # OpenAI API Key
+    "ghp_[a-zA-Z0-9]{36}"           # GitHub Personal Token
+    "xoxb-[0-9]{10,13}-[0-9]{10,13}-[a-zA-Z0-9]{24,32}"  # Slack Bot Token
+    "api[_-]?key[_-]?[=:]\s*['\"]?[a-zA-Z0-9]{32,}" # Generic API key
+)
+
+ERRORS=0
+
+for pattern in "${SECRET_PATTERNS[@]}"; do
+    if git diff --cached | grep -E "$pattern" > /dev/null; then
+        echo "❌ Potential secret detected: $pattern"
+        ERRORS=$((ERRORS + 1))
+    fi
+done
+
+if [ $ERRORS -gt 0 ]; then
+    echo ""
+    echo "🚫 Commit blocked! Please remove secrets before committing."
+    echo "💡 Use git-secrets or detect-secrets to scan for secrets."
+    exit 1
+fi
+
+echo "✅ No secrets detected"
+exit 0
+
