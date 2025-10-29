@@ -1,0 +1,56 @@
+{
+  "dashboard": {
+    "title": "Coding Agent Dashboard",
+    "panels": [
+      {
+        "title": "HTTP Request Rate",
+        "targets": [
+          {
+            "expr": "rate(http_requests_total[5m])"
+          }
+        ]
+      },
+      {
+        "title": "HTTP Request Duration",
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, http_request_duration_seconds)"
+          }
+        ]
+      },
+      {
+        "title": "Automation Jobs",
+        "targets": [
+          {
+            "expr": "sum(automation_jobs_total) by (status)"
+          }
+        ]
+      },
+      {
+        "title": "AI Cost",
+        "targets": [
+          {
+            "expr": "sum(rate(ai_cost_usd_bucket[5m]))"
+          }
+        ]
+      },
+      {
+        "title": "Active Users",
+        "targets": [
+          {
+            "expr": "active_users"
+          }
+        ]
+      },
+      {
+        "title": "API Error Rate",
+        "targets": [
+          {
+            "expr": "rate(http_requests_total{status=~\"5..\"}[5m])"
+          }
+        ]
+      }
+    ]
+  }
+}
+

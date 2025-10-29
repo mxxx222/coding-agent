@@ -5,18 +5,26 @@ from fastapi.responses import JSONResponse
 import os
 from dotenv import load_dotenv
 
-from .routes import code, refactor, test, integrate, indexer, notion, deployment, automation
+from .routes import code, refactor, test, integrate, indexer, notion, deployment, automation, metrics
 from .middleware.auth import AuthMiddleware
 from .middleware.policy import PolicyMiddleware
 from .middleware.cost_tracker import CostTrackerMiddleware
 from .middleware.audit_logger import AuditLoggerMiddleware
 from .middleware.rate_limiter import RateLimiterMiddleware
+from .middleware.metrics import MetricsMiddleware
 from services.llm.openai_client import OpenAIClient
 from services.indexer.vector_store import VectorStore
 from database.schema import init_db
 
 # Load environment variables
 load_dotenv()
+
+# Initialize Sentry (must be first)
+try:
+    from config.sentry import init_sentry
+    init_sentry()
+except ImportError:
+    pass
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -44,6 +52,7 @@ app.add_middleware(
 
 # Custom middleware (order matters!)
 app.add_middleware(AuditLoggerMiddleware)  # Log all requests first
+app.add_middleware(MetricsMiddleware)      # Collect metrics
 app.add_middleware(RateLimiterMiddleware)  # Rate limit before auth
 app.add_middleware(AuthMiddleware)         # Authenticate requests
 app.add_middleware(PolicyMiddleware)       # Apply policies
@@ -58,6 +67,7 @@ app.include_router(indexer.router, prefix="/api/indexer", tags=["indexing"])
 app.include_router(notion.router, prefix="/api/notion", tags=["notion"])
 app.include_router(deployment.router, prefix="/api/deploy", tags=["deployment"])
 app.include_router(automation.router, prefix="/api/automation", tags=["automation"])
+app.include_router(metrics.router, prefix="/api", tags=["metrics"])
 
 # Global exception handler
 @app.exception_handler(Exception)
