@@ -5,7 +5,7 @@ from fastapi.responses import JSONResponse
 import os
 from dotenv import load_dotenv
 
-from .routes import code, refactor, test, integrate, indexer
+from .routes import code, refactor, test, integrate, indexer, notion, deployment, automation
 from .middleware.auth import AuthMiddleware
 from .middleware.policy import PolicyMiddleware
 from .middleware.cost_tracker import CostTrackerMiddleware
@@ -51,6 +51,9 @@ app.include_router(refactor.router, prefix="/api/analyze", tags=["refactoring"])
 app.include_router(test.router, prefix="/api/generate", tags=["test-generation"])
 app.include_router(integrate.router, prefix="/api/integrations", tags=["integrations"])
 app.include_router(indexer.router, prefix="/api/indexer", tags=["indexing"])
+app.include_router(notion.router, prefix="/api/notion", tags=["notion"])
+app.include_router(deployment.router, prefix="/api/deploy", tags=["deployment"])
+app.include_router(automation.router, prefix="/api/automation", tags=["automation"])
 
 # Global exception handler
 @app.exception_handler(Exception)
@@ -63,13 +66,24 @@ async def global_exception_handler(request, exc):
 # Health check endpoint
 @app.get("/api/health")
 async def health_check():
+    # Import integrations to check their status
+    try:
+        from .routes import notion, deployment
+        notion_status = notion.NOTION_ENABLED if notion.NOTION_ENABLED else False
+        vercel_status = deployment.VERCEL_ENABLED if deployment.VERCEL_ENABLED else False
+    except:
+        notion_status = False
+        vercel_status = False
+    
     return {
         "status": "healthy",
         "version": "1.0.0",
         "services": {
             "database": "connected",
             "vector_store": "connected",
-            "llm": "connected"
+            "llm": "connected",
+            "notion": "enabled" if notion_status else "disabled",
+            "vercel": "enabled" if vercel_status else "disabled"
         }
     }
 
