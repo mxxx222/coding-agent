@@ -10,12 +10,14 @@ from services.secrets.rotate import RotationManager
 from pydantic import BaseModel
 import os
 from services.secrets.providers import create_provider
+from services.secrets.presets import ProviderPresetsStore
 
 router = APIRouter()
 
 # Initialize managers
 secret_manager = SecretManager()
 rotation_manager = RotationManager(secret_manager)
+presets_store = ProviderPresetsStore()
 
 # Request models
 class CreateSecretRequest(BaseModel):
@@ -46,6 +48,23 @@ def _require_admin(request: Request):
     supplied = request.headers.get("X-Admin-Token")
     if supplied != admin_token:
         raise HTTPException(status_code=403, detail="Admin token required")
+
+
+def _require_role(request: Request, role: str):
+    """Simple RBAC via env tokens. Roles: admin, readonly.
+    - admin: ADMIN_TOKEN
+    - readonly: READ_TOKEN (falls back to open if not set)
+    """
+    if role == "admin":
+        return _require_admin(request)
+    if role == "readonly":
+        read_token = os.getenv("READ_TOKEN")
+        if not read_token:
+            return
+        supplied = request.headers.get("X-Read-Token")
+        if supplied != read_token:
+            raise HTTPException(status_code=403, detail="Read token required")
+    return
 
 
 @router.get("/secrets")
@@ -291,4 +310,31 @@ async def sync_secrets(request: Request, req: SyncRequest):
         pulled += 1
 
     return {"status": "success", "provider": req.provider, "action": req.action, "pulled": pulled}
+
+
+class PresetUpsert(BaseModel):
+    name: str
+    provider: str
+    config: Dict[str, Any]
+
+
+@router.get("/secrets/providers/presets")
+async def list_presets():
+    return {"status": "success", "presets": presets_store.list()}
+
+
+@router.post("/secrets/providers/presets")
+async def upsert_preset(request: Request, body: PresetUpsert):
+    _require_role(request, "admin")
+    item = presets_store.upsert(body.name, body.provider, body.config)
+    return {"status": "success", "preset": item}
+
+
+@router.delete("/secrets/providers/presets/{name}")
+async def delete_preset(request: Request, name: str):
+    _require_role(request, "admin")
+    ok = presets_store.delete(name)
+    if not ok:
+        raise HTTPException(status_code=404, detail="Preset not found")
+    return {"status": "success"}
 
