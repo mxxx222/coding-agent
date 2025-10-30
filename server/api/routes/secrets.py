@@ -2,12 +2,13 @@
 API endpoints for secret management.
 """
 
-from fastapi import APIRouter, HTTPException, Body, Header
+from fastapi import APIRouter, HTTPException, Body, Header, Request
 from typing import Optional, Dict, Any
 from datetime import datetime
 from services.secrets.manager import SecretManager
 from services.secrets.rotate import RotationManager
 from pydantic import BaseModel
+import os
 from services.secrets.providers import create_provider
 
 router = APIRouter()
@@ -36,6 +37,15 @@ class SyncRequest(BaseModel):
     provider: str
     action: str  # push | pull
     prefix: Optional[str] = None
+
+
+def _require_admin(request: Request):
+    admin_token = os.getenv("ADMIN_TOKEN")
+    if not admin_token:
+        return
+    supplied = request.headers.get("X-Admin-Token")
+    if supplied != admin_token:
+        raise HTTPException(status_code=403, detail="Admin token required")
 
 
 @router.get("/secrets")
@@ -100,8 +110,9 @@ async def create_secret(request: CreateSecretRequest):
 
 
 @router.post("/secrets/{secret_id}/retrieve")
-async def retrieve_secret_value(secret_id: str, reason: str = Header(None)):
+async def retrieve_secret_value(request: Request, secret_id: str, reason: str = Header(None)):
     """Retrieve the actual secret value (requires reason)."""
+    _require_admin(request)
     if not reason:
         raise HTTPException(status_code=400, detail="Reason required for secret retrieval")
     
@@ -136,10 +147,12 @@ async def retrieve_secret_value(secret_id: str, reason: str = Header(None)):
 
 @router.post("/secrets/{secret_id}/rotate")
 async def rotate_secret(
+    request: Request,
     secret_id: str,
     new_value: Optional[str] = None
 ):
     """Rotate a secret."""
+    _require_admin(request)
     try:
         secret = secret_manager.rotate_secret(secret_id, new_value)
         
@@ -159,8 +172,9 @@ async def rotate_secret(
 
 
 @router.post("/secrets/rotate-all")
-async def rotate_expired_secrets():
+async def rotate_expired_secrets(request: Request):
     """Automatically rotate all expired secrets."""
+    _require_admin(request)
     results = rotation_manager.check_and_rotate_all()
     
     return {
@@ -181,8 +195,9 @@ async def get_rotation_schedule():
 
 
 @router.get("/secrets/expired")
-async def get_expired_secrets():
+async def get_expired_secrets(request: Request):
     """Get list of expired secrets."""
+    _require_admin(request)
     expired = secret_manager.check_expired_secrets()
     
     return {
@@ -193,8 +208,9 @@ async def get_expired_secrets():
 
 
 @router.delete("/secrets/{secret_id}")
-async def delete_secret(secret_id: str):
+async def delete_secret(request: Request, secret_id: str):
     """Delete a secret."""
+    _require_admin(request)
     success = secret_manager.delete_secret(secret_id)
     
     if not success:
@@ -207,8 +223,9 @@ async def delete_secret(secret_id: str):
 
 
 @router.post("/secrets/{secret_id}/test")
-async def test_secret(secret_id: str):
+async def test_secret(request: Request, secret_id: str):
     """Test if a secret works with its service."""
+    _require_admin(request)
     secret = secret_manager.get_secret(secret_id, decrypt=True)
     
     if not secret:
@@ -226,13 +243,15 @@ async def test_secret(secret_id: str):
 
 
 @router.post("/secrets/providers/test")
-async def test_provider(req: ProviderConfigRequest):
+async def test_provider(request: Request, req: ProviderConfigRequest):
+    _require_admin(request)
     provider = create_provider(req.provider, req.config)
     return {"status": "success", "healthy": provider.healthy(), "provider": req.provider}
 
 
 @router.post("/secrets/sync")
-async def sync_secrets(req: SyncRequest):
+async def sync_secrets(request: Request, req: SyncRequest):
+    _require_admin(request)
     provider = create_provider(req.provider)
     if req.action not in ("push", "pull"):
         raise HTTPException(status_code=400, detail="Invalid action; use 'push' or 'pull'")
