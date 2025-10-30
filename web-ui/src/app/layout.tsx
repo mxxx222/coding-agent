@@ -4,6 +4,7 @@ import './globals.css'
 import { Providers } from './providers'
 import { Sidebar } from '@/components/layout/Sidebar'
 import { Topbar } from '@/components/layout/Topbar'
+import { KeyboardShortcuts } from '@/components/KeyboardShortcuts'
 import { Toaster } from 'react-hot-toast'
 
 const inter = Inter({ subsets: ['latin'] })
@@ -38,6 +39,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <div className="min-h-screen flex flex-col">
               <Topbar />
               <main className="flex-1 p-4 md:p-6">
+                <KeyboardShortcuts />
                 <div className="max-w-6xl mx-auto">
                   {children}
                 </div>
