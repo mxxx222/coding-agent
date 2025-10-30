@@ -4,9 +4,11 @@ API endpoints for secret management.
 
 from fastapi import APIRouter, HTTPException, Body, Header
 from typing import Optional, Dict, Any
+from datetime import datetime
 from services.secrets.manager import SecretManager
 from services.secrets.rotate import RotationManager
 from pydantic import BaseModel
+from services.secrets.providers import create_provider
 
 router = APIRouter()
 
@@ -23,6 +25,17 @@ class CreateSecretRequest(BaseModel):
     rotation_policy: Optional[str] = "30_days"
     expires_in_days: Optional[int] = None
     metadata: Optional[Dict[str, Any]] = None
+
+
+class ProviderConfigRequest(BaseModel):
+    provider: str
+    config: Dict[str, Any]
+
+
+class SyncRequest(BaseModel):
+    provider: str
+    action: str  # push | pull
+    prefix: Optional[str] = None
 
 
 @router.get("/secrets")
@@ -210,4 +223,19 @@ async def test_secret(secret_id: str):
         "is_valid": is_valid,
         "service": secret.service
     }
+
+
+@router.post("/secrets/providers/test")
+async def test_provider(req: ProviderConfigRequest):
+    provider = create_provider(req.provider, req.config)
+    return {"status": "success", "healthy": provider.healthy(), "provider": req.provider}
+
+
+@router.post("/secrets/sync")
+async def sync_secrets(req: SyncRequest):
+    provider = create_provider(req.provider)
+    # Minimal placeholder behavior
+    if req.action not in ("push", "pull"):
+        raise HTTPException(status_code=400, detail="Invalid action; use 'push' or 'pull'")
+    return {"status": "success", "provider": req.provider, "action": req.action, "prefix": req.prefix}
 
