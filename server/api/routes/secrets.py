@@ -234,8 +234,42 @@ async def test_provider(req: ProviderConfigRequest):
 @router.post("/secrets/sync")
 async def sync_secrets(req: SyncRequest):
     provider = create_provider(req.provider)
-    # Minimal placeholder behavior
     if req.action not in ("push", "pull"):
         raise HTTPException(status_code=400, detail="Invalid action; use 'push' or 'pull'")
-    return {"status": "success", "provider": req.provider, "action": req.action, "prefix": req.prefix}
+
+    prefix = (req.prefix or "").rstrip("/")
+
+    if req.action == "push":
+        pushed = 0
+        for s in list(secret_manager.secrets_storage.values()):
+            key = f"{prefix}/{s.service}/{s.name}" if prefix else f"{s.service}/{s.name}"
+            dec = secret_manager.get_secret(s.id, decrypt=True)
+            if not dec:
+                continue
+            if provider.put(key, dec.value):
+                pushed += 1
+        return {"status": "success", "provider": req.provider, "action": req.action, "pushed": pushed}
+
+    # pull
+    pulled = 0
+    keys = provider.list(prefix=prefix)
+    for key in keys:
+        # expected pattern: <prefix>/service/name or service/name
+        path = key[len(prefix)+1:] if prefix and key.startswith(prefix + "/") else key
+        parts = path.split("/", 1)
+        if len(parts) != 2:
+            continue
+        service, name = parts
+        value = provider.get(key)
+        if not value:
+            continue
+        # create or update
+        existing = secret_manager.get_secret_by_name(name, service)
+        if existing:
+            secret_manager.rotate_secret(existing.id, value)
+        else:
+            secret_manager.create_secret(name=name, value=value, secret_type="api_key", service=service)
+        pulled += 1
+
+    return {"status": "success", "provider": req.provider, "action": req.action, "pulled": pulled}
 

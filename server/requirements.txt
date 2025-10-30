@@ -6,3 +6,6 @@ psycopg2-binary
 prometheus-client
 sentry-sdk
 cryptography
+boto3
+hvac
+google-cloud-secret-manager
