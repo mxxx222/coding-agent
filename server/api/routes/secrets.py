@@ -11,6 +11,8 @@ from pydantic import BaseModel
 import os
 from services.secrets.providers import create_provider
 from services.secrets.presets import ProviderPresetsStore
+from services.secrets.bundles import export_bundle, import_bundle
+from services.audit.events import AuditEvents
 
 router = APIRouter()
 
@@ -18,6 +20,7 @@ router = APIRouter()
 secret_manager = SecretManager()
 rotation_manager = RotationManager(secret_manager)
 presets_store = ProviderPresetsStore()
+auditor = AuditEvents()
 
 # Request models
 class CreateSecretRequest(BaseModel):
@@ -153,6 +156,7 @@ async def retrieve_secret_value(request: Request, secret_id: str, reason: str = 
             }
         }
     
+    auditor.emit("secret.retrieve", actor=request.client.host if request.client else "unknown", payload={"secret_id": secret.id, "reason": reason})
     return {
         "status": "success",
         "secret": {
@@ -174,6 +178,7 @@ async def rotate_secret(
     _require_admin(request)
     try:
         secret = secret_manager.rotate_secret(secret_id, new_value)
+        auditor.emit("secret.rotate", actor=request.client.host if request.client else "unknown", payload={"secret_id": secret.id})
         
         return {
             "status": "success",
@@ -195,6 +200,7 @@ async def rotate_expired_secrets(request: Request):
     """Automatically rotate all expired secrets."""
     _require_admin(request)
     results = rotation_manager.check_and_rotate_all()
+    auditor.emit("secret.rotate_all", actor=request.client.host if request.client else "unknown", payload={"summary": results})
     
     return {
         "status": "success",
@@ -235,6 +241,7 @@ async def delete_secret(request: Request, secret_id: str):
     if not success:
         raise HTTPException(status_code=404, detail="Secret not found")
     
+    auditor.emit("secret.delete", actor=request.client.host if request.client else "unknown", payload={"secret_id": secret_id, "success": success})
     return {
         "status": "success",
         "message": "Secret deleted successfully"
@@ -265,7 +272,9 @@ async def test_secret(request: Request, secret_id: str):
 async def test_provider(request: Request, req: ProviderConfigRequest):
     _require_admin(request)
     provider = create_provider(req.provider, req.config)
-    return {"status": "success", "healthy": provider.healthy(), "provider": req.provider}
+    healthy = provider.healthy()
+    auditor.emit("provider.test", actor=request.client.host if request.client else "unknown", payload={"provider": req.provider, "healthy": healthy})
+    return {"status": "success", "healthy": healthy, "provider": req.provider}
 
 
 @router.post("/secrets/sync")
@@ -286,6 +295,7 @@ async def sync_secrets(request: Request, req: SyncRequest):
                 continue
             if provider.put(key, dec.value):
                 pushed += 1
+        auditor.emit("provider.sync.push", actor=request.client.host if request.client else "unknown", payload={"provider": req.provider, "pushed": pushed})
         return {"status": "success", "provider": req.provider, "action": req.action, "pushed": pushed}
 
     # pull
@@ -309,7 +319,70 @@ async def sync_secrets(request: Request, req: SyncRequest):
             secret_manager.create_secret(name=name, value=value, secret_type="api_key", service=service)
         pulled += 1
 
+    auditor.emit("provider.sync.pull", actor=request.client.host if request.client else "unknown", payload={"provider": req.provider, "pulled": pulled})
     return {"status": "success", "provider": req.provider, "action": req.action, "pulled": pulled}
+
+
+class ExportRequest(BaseModel):
+    secret_ids: Optional[List[str]] = None
+    include_services: Optional[List[str]] = None
+    passphrase: str
+
+
+@router.post("/secrets/export")
+async def export_secrets(request: Request, body: ExportRequest):
+    _require_role(request, "admin")
+    # Collect items to export (decrypt values)
+    items = []
+    for s in list(secret_manager.secrets_storage.values()):
+        if body.secret_ids and s.id not in body.secret_ids:
+            continue
+        if body.include_services and s.service not in body.include_services:
+            continue
+        dec = secret_manager.get_secret(s.id, decrypt=True)
+        if not dec:
+            continue
+        items.append({
+            "id": dec.id,
+            "name": dec.name,
+            "service": dec.service,
+            "secret_type": dec.secret_type,
+            "value": dec.value,
+            "metadata": dec.metadata or {}
+        })
+    bundle = export_bundle(items, body.passphrase)
+    auditor.emit("secrets.export", actor=request.client.host if request.client else "unknown", payload={"count": len(items)})
+    return {"status": "success", "bundle": bundle}
+
+
+class ImportRequest(BaseModel):
+    bundle: Dict[str, Any]
+    passphrase: str
+    overwrite: bool = True
+
+
+@router.post("/secrets/import")
+async def import_secrets(request: Request, body: ImportRequest):
+    _require_role(request, "admin")
+    payload = import_bundle(body.bundle, body.passphrase)
+    imported = 0
+    for item in payload.get("items", []):
+        existing = secret_manager.get_secret_by_name(item.get("name"), item.get("service"))
+        if existing and not body.overwrite:
+            continue
+        if existing:
+            secret_manager.rotate_secret(existing.id, item.get("value"))
+        else:
+            secret_manager.create_secret(
+                name=item.get("name"),
+                value=item.get("value"),
+                secret_type=item.get("secret_type", "api_key"),
+                service=item.get("service"),
+                metadata=item.get("metadata") or {}
+            )
+        imported += 1
+    auditor.emit("secrets.import", actor=request.client.host if request.client else "unknown", payload={"count": imported})
+    return {"status": "success", "imported": imported}
 
 
 class PresetUpsert(BaseModel):
