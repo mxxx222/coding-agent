@@ -1,0 +1,109 @@
+{
+  "templates": [
+    {
+      "id": "code-generate-basic",
+      "name": "Basic Code Generation",
+      "description": "Generate code based on requirements",
+      "version": "1.0.0",
+      "category": "code-generation",
+      "template": "Generate {language} code for the following requirement:\n\n{requirement}\n\nRequirements:\n- Follow best practices\n- Include error handling\n- Add comments where appropriate\n- Return complete, runnable code",
+      "input_schema": {
+        "language": "string",
+        "requirement": "string"
+      },
+      "examples": [
+        {
+          "language": "Python",
+          "requirement": "Create a function to calculate factorial"
+        }
+      ],
+      "quality_score": 0.0,
+      "usage_count": 0,
+      "success_rate": 0.0,
+      "created_at": "2025-10-22T00:00:00",
+      "updated_at": "2025-10-22T00:00:00",
+      "author": "system",
+      "tags": ["code", "generation", "basic"]
+    },
+    {
+      "id": "code-refactor",
+      "name": "Code Refactoring",
+      "description": "Refactor code to improve quality",
+      "version": "1.0.0",
+      "category": "refactoring",
+      "template": "Refactor the following {language} code to improve quality:\n\n{code}\n\nGoals:\n- Improve readability\n- Reduce complexity\n- Follow SOLID principles\n- Maintain functionality\n\nProvide the refactored code with explanations.",
+      "input_schema": {
+        "language": "string",
+        "code": "string"
+      },
+      "examples": [],
+      "quality_score": 0.0,
+      "usage_count": 0,
+      "success_rate": 0.0,
+      "created_at": "2025-10-22T00:00:00",
+      "updated_at": "2025-10-22T00:00:00",
+      "author": "system",
+      "tags": ["refactoring", "quality"]
+    },
+    {
+      "id": "test-generation",
+      "name": "Test Generation",
+      "description": "Generate tests for code",
+      "version": "1.0.0",
+      "category": "testing",
+      "template": "Generate comprehensive {test_framework} tests for the following code:\n\n{code}\n\nRequirements:\n- Cover all functions and methods\n- Include edge cases\n- Mock external dependencies\n- Follow AAA pattern (Arrange, Act, Assert)\n- Aim for 100% coverage",
+      "input_schema": {
+        "test_framework": "string",
+        "code": "string"
+      },
+      "examples": [],
+      "quality_score": 0.0,
+      "usage_count": 0,
+      "success_rate": 0.0,
+      "created_at": "2025-10-22T00:00:00",
+      "updated_at": "2025-10-22T00:00:00",
+      "author": "system",
+      "tags": ["testing", "automation"]
+    },
+    {
+      "id": "code-explanation",
+      "name": "Code Explanation",
+      "description": "Explain what code does",
+      "version": "1.0.0",
+      "category": "documentation",
+      "template": "Explain the following {language} code in detail:\n\n{code}\n\nProvide:\n1. Overview of what the code does\n2. Step-by-step breakdown\n3. Key algorithms or patterns used\n4. Potential improvements or issues",
+      "input_schema": {
+        "language": "string",
+        "code": "string"
+      },
+      "examples": [],
+      "quality_score": 0.0,
+      "usage_count": 0,
+      "success_rate": 0.0,
+      "created_at": "2025-10-22T00:00:00",
+      "updated_at": "2025-10-22T00:00:00",
+      "author": "system",
+      "tags": ["documentation", "explanation"]
+    },
+    {
+      "id": "automation-plan",
+      "name": "Automation Plan Generation",
+      "description": "Create an automation plan from requirements",
+      "version": "1.0.0",
+      "category": "automation",
+      "template": "Create a detailed automation plan for:\n\n{requirements}\n\nProvide:\n1. High-level architecture\n2. Step-by-step implementation plan\n3. Technologies to use\n4. Potential challenges and solutions\n5. Success criteria\n\nFormat as JSON with structured tasks.",
+      "input_schema": {
+        "requirements": "string"
+      },
+      "examples": [],
+      "quality_score": 0.0,
+      "usage_count": 0,
+      "success_rate": 0.0,
+      "created_at": "2025-10-22T00:00:00",
+      "updated_at": "2025-10-22T00:00:00",
+      "author": "system",
+      "tags": ["automation", "planning"]
+    }
+  ]
+}
+

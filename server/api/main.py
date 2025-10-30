@@ -5,7 +5,7 @@ from fastapi.responses import JSONResponse
 import os
 from dotenv import load_dotenv
 
-from .routes import code, refactor, test, integrate, indexer, notion, deployment, automation, metrics, observability
+from .routes import code, refactor, test, integrate, indexer, notion, deployment, automation, metrics, observability, prompts
 from .middleware.auth import AuthMiddleware
 from .middleware.policy import PolicyMiddleware
 from .middleware.cost_tracker import CostTrackerMiddleware
@@ -69,6 +69,7 @@ app.include_router(deployment.router, prefix="/api/deploy", tags=["deployment"])
 app.include_router(automation.router, prefix="/api/automation", tags=["automation"])
 app.include_router(metrics.router, prefix="/api", tags=["metrics"])
 app.include_router(observability.router, tags=["observability"])
+app.include_router(prompts.router, prefix="/api/prompts", tags=["prompts"])
 
 # Global exception handler
 @app.exception_handler(Exception)
