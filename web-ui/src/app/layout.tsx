@@ -31,6 +31,17 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" className="h-full">
       <body className={`${inter.className} h-full bg-gray-50`}>
         <Providers>
+          <header className="bg-white border-b">
+            <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
+              <a href="/" className="font-semibold">Coding Agent</a>
+              <nav className="flex items-center gap-4 text-sm">
+                <a className="hover:underline" href="/auto-deploy">Auto‑Deploy</a>
+                <a className="hover:underline" href="/secrets">Secrets</a>
+                <a className="hover:underline" href="/secrets/providers">Providers</a>
+                <a className="hover:underline" href="/secrets/tools">Tools</a>
+              </nav>
+            </div>
+          </header>
           {children}
           <Toaster
             position="top-right"
