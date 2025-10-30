@@ -4,6 +4,8 @@ import { usePathname } from "next/navigation";
 
 const links = [
   { href: "/", label: "Home" },
+  { href: "/build-with-me", label: "Build with me" },
+  { href: "/deploy-packs", label: "Deploy Packs" },
   { href: "/auto-deploy", label: "Auto‑Deploy" },
   { href: "/secrets", label: "Secrets" },
   { href: "/secrets/providers", label: "Providers" },
