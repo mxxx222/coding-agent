@@ -21,7 +21,7 @@ export async function integrateCommand(
     logger.step('Setting up integrations with external services');
 
     // Validate services
-    const validServices = ['supabase', 'stripe', 'auth0', 'sendgrid', 'aws', 'vercel', 'netlify'];
+    const validServices = ['supabase', 'stripe', 'auth0', 'sendgrid', 'aws', 'vercel', 'netlify', 'github'];
     const invalidServices = services.filter(service => !validServices.includes(service));
     
     if (invalidServices.length > 0) {
@@ -109,6 +109,9 @@ async function setupService(service: string, config: any, dryRun: boolean): Prom
         break;
       case 'netlify':
         result = await setupNetlify(config, dryRun);
+        break;
+      case 'github':
+        result = await setupGitHub(config, dryRun);
         break;
       default:
         throw new Error(`Unknown service: ${service}`);
@@ -437,7 +440,7 @@ async function setupVercel(config: any, dryRun: boolean): Promise<IntegrationRes
 async function setupNetlify(config: any, dryRun: boolean): Promise<IntegrationResult> {
   const files: string[] = [];
   const dependencies: string[] = [];
-  
+
   if (!dryRun) {
     // Create Netlify configuration
     const netlifyConfig = `[build]
@@ -451,17 +454,85 @@ async function setupNetlify(config: any, dryRun: boolean): Promise<IntegrationRe
   from = "/*"
   to = "/index.html"
   status = 200`;
-    
+
     await fs.writeFile('netlify.toml', netlifyConfig);
     files.push('netlify.toml');
   }
-  
+
   return {
     service: 'netlify',
     success: true,
     files,
     dependencies,
     config: {}
+  };
+}
+
+async function setupGitHub(config: any, dryRun: boolean): Promise<IntegrationResult> {
+  const files: string[] = [];
+  const dependencies: string[] = [];
+
+  if (!dryRun) {
+    // Create GitHub Actions workflow for CI/CD
+    const workflowConfig = `name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: [18.x, 20.x]
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Use Node.js \${{ matrix.node-version }}
+      uses: actions/setup-node@v4
+      with:
+        node-version: \${{ matrix.node-version }}
+        cache: 'npm'
+    - run: npm ci
+    - run: npm run build --if-present
+    - run: npm test
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Deploy to production
+      run: echo "Deploy step - configure as needed"`;
+
+    await fs.ensureDir('.github/workflows');
+    await fs.writeFile('.github/workflows/ci-cd.yml', workflowConfig);
+    files.push('.github/workflows/ci-cd.yml');
+
+    // Create environment variables template
+    const envExample = `# GitHub
+GITHUB_TOKEN=your_github_personal_access_token
+GITHUB_REPOSITORY=your_username/your_repository`;
+
+    await fs.appendFile('.env.example', envExample);
+    files.push('.env.example');
+  }
+
+  return {
+    service: 'github',
+    success: true,
+    files,
+    dependencies,
+    config: {
+      token: config.github?.token || 'your_github_personal_access_token',
+      repository: config.github?.repository || 'your_username/your_repository'
+    }
   };
 }
 

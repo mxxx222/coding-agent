@@ -1,12 +1,20 @@
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
-from typing import List, Optional
+from typing import List, Optional, Any
 import asyncio
+import logging
 
 from services.llm.openai_client import OpenAIClient
 from services.indexer.ast_parser import ASTParser
 from services.indexer.embeddings import EmbeddingService
 from api.middleware.auth import get_current_user
+from api.middleware.exceptions import (
+    ServiceUnavailableException,
+    ValidationException,
+    TimeoutException
+)
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -27,7 +35,7 @@ class CodeExplanationRequest(BaseModel):
     detail_level: Optional[str] = "medium"  # low, medium, high
 
 class CodeExplanationResponse(BaseModel):
-    explanation: dict
+    explanation: Any
     components: List[dict]
     data_flow: str
     dependencies: List[str]
@@ -39,54 +47,134 @@ async def analyze_code(
 ):
     """Analyze code for quality, complexity, and suggestions."""
     try:
+        # Validate input
+        if not request.code or not request.code.strip():
+            raise ValidationException(
+                message="Code content cannot be empty",
+                details={"field": "code"}
+            )
+
+        if len(request.code) > 100000:  # 100KB limit
+            raise ValidationException(
+                message="Code content exceeds maximum size limit",
+                details={"max_size": "100KB", "actual_size": f"{len(request.code)} chars"}
+            )
+
         # Initialize services
-        openai_client = OpenAIClient()
-        ast_parser = ASTParser()
-        embedding_service = EmbeddingService()
-        
-        # Parse AST
-        ast_result = await ast_parser.parse_code(request.code, request.language)
-        
-        # Generate embeddings
-        embeddings = await embedding_service.generate_embeddings(request.code)
-        
-        # Analyze with OpenAI
-        analysis_prompt = f"""
-        Analyze the following code and provide:
-        1. Code quality assessment
-        2. Complexity analysis
-        3. Performance suggestions
-        4. Security considerations
-        5. Best practices recommendations
-        
-        Code:
-        ```{request.language}
-        {request.code}
-        ```
-        
-        Context: {request.context or "No additional context provided"}
-        """
-        
-        analysis_result = await openai_client.analyze_code(analysis_prompt)
-        
+        try:
+            openai_client = OpenAIClient()
+            ast_parser = ASTParser()
+            embedding_service = EmbeddingService()
+        except Exception as e:
+            logger.error(f"Failed to initialize services: {str(e)}")
+            raise ServiceUnavailableException(
+                message="Required services are currently unavailable",
+                details={"service": "code_analysis_services"}
+            )
+
+        # Parse AST with timeout protection
+        try:
+            ast_result = await asyncio.wait_for(
+                ast_parser.parse_code(request.code, request.language),
+                timeout=10.0  # 10 second timeout for AST parsing
+            )
+        except asyncio.TimeoutError:
+            logger.warning("AST parsing timed out")
+            raise TimeoutException(
+                message="Code parsing timed out",
+                details={"operation": "ast_parsing", "timeout_seconds": 10.0}
+            )
+        except Exception as e:
+            logger.error(f"AST parsing failed: {str(e)}")
+            # Continue with empty AST result for basic analysis
+
+        # Generate embeddings with error handling
+        try:
+            embeddings = await asyncio.wait_for(
+                embedding_service.generate_embeddings(request.code),
+                timeout=15.0  # 15 second timeout for embeddings
+            )
+        except asyncio.TimeoutError:
+            logger.warning("Embedding generation timed out")
+            # Continue without embeddings
+        except Exception as e:
+            logger.warning(f"Embedding generation failed: {str(e)}")
+            # Continue without embeddings
+
+        # Analyze with OpenAI with retry logic
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                analysis_prompt = f"""
+                Analyze the following code and provide:
+                1. Code quality assessment
+                2. Complexity analysis
+                3. Performance suggestions
+                4. Security considerations
+                5. Best practices recommendations
+
+                Code:
+                ```{request.language}
+                {request.code}
+                ```
+
+                Context: {request.context or "No additional context provided"}
+                """
+
+                analysis_result = await asyncio.wait_for(
+                    openai_client.analyze_code(analysis_prompt),
+                    timeout=30.0  # 30 second timeout for AI analysis
+                )
+                break  # Success, exit retry loop
+
+            except asyncio.TimeoutError:
+                if attempt == max_retries - 1:
+                    logger.error("AI analysis timed out after all retries")
+                    raise TimeoutException(
+                        message="Code analysis timed out",
+                        details={"operation": "ai_analysis", "attempts": max_retries}
+                    )
+                logger.warning(f"AI analysis attempt {attempt + 1} timed out, retrying...")
+                await asyncio.sleep(1)  # Brief delay before retry
+
+            except Exception as e:
+                if attempt == max_retries - 1:
+                    logger.error(f"AI analysis failed after all retries: {str(e)}")
+                    raise ServiceUnavailableException(
+                        message="AI analysis service is currently unavailable",
+                        details={"attempts": max_retries, "last_error": str(e)}
+                    )
+                logger.warning(f"AI analysis attempt {attempt + 1} failed: {str(e)}, retrying...")
+                await asyncio.sleep(1)
+
         # Calculate quality score
         quality_score = calculate_quality_score(ast_result, analysis_result)
-        
+
         # Generate suggestions
         suggestions = generate_suggestions(ast_result, analysis_result)
-        
+
         # Calculate complexity metrics
         complexity = calculate_complexity(ast_result)
-        
+
         return CodeAnalysisResponse(
             analysis=analysis_result,
             suggestions=suggestions,
             complexity=complexity,
             quality_score=quality_score
         )
-        
+
+    except ValidationException:
+        raise  # Re-raise validation errors
+    except TimeoutException:
+        raise  # Re-raise timeout errors
+    except ServiceUnavailableException:
+        raise  # Re-raise service unavailable errors
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Code analysis failed: {str(e)}")
+        logger.critical(f"Unexpected error in code analysis: {str(e)}", exc_info=True)
+        raise ServiceUnavailableException(
+            message="An unexpected error occurred during code analysis",
+            details={"error_type": type(e).__name__}
+        )
 
 @router.post("/explain", response_model=CodeExplanationResponse)
 async def explain_code(
@@ -95,44 +183,123 @@ async def explain_code(
 ):
     """Explain code functionality and structure."""
     try:
-        openai_client = OpenAIClient()
-        
-        explanation_prompt = f"""
-        Explain the following code in detail:
-        1. What the code does
-        2. Key components and their roles
-        3. Data flow and logic
-        4. Dependencies and relationships
-        5. Potential issues or improvements
-        
-        Detail level: {request.detail_level}
-        
-        Code:
-        ```{request.language}
-        {request.code}
-        ```
-        """
-        
-        explanation_result = await openai_client.explain_code(explanation_prompt)
-        
-        # Extract components
-        components = extract_components(request.code, request.language)
-        
-        # Analyze data flow
-        data_flow = analyze_data_flow(request.code, request.language)
-        
-        # Extract dependencies
-        dependencies = extract_dependencies(request.code, request.language)
-        
+        # Validate input
+        if not request.code or not request.code.strip():
+            raise ValidationException(
+                message="Code content cannot be empty",
+                details={"field": "code"}
+            )
+
+        if len(request.code) > 50000:  # 50KB limit for explanations
+            raise ValidationException(
+                message="Code content exceeds maximum size limit for explanation",
+                details={"max_size": "50KB", "actual_size": f"{len(request.code)} chars"}
+            )
+
+        # Validate detail level
+        valid_detail_levels = ["low", "medium", "high"]
+        if request.detail_level not in valid_detail_levels:
+            raise ValidationException(
+                message=f"Invalid detail level. Must be one of: {', '.join(valid_detail_levels)}",
+                details={"valid_levels": valid_detail_levels, "provided": request.detail_level}
+            )
+
+        # Initialize OpenAI client
+        try:
+            openai_client = OpenAIClient()
+        except Exception as e:
+            logger.error(f"Failed to initialize OpenAI client: {str(e)}")
+            raise ServiceUnavailableException(
+                message="AI explanation service is currently unavailable",
+                details={"service": "openai_client"}
+            )
+
+        # Generate explanation with timeout and retry logic
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                explanation_prompt = f"""
+                Explain the following code in detail:
+                1. What the code does
+                2. Key components and their roles
+                3. Data flow and logic
+                4. Dependencies and relationships
+                5. Potential issues or improvements
+
+                Detail level: {request.detail_level}
+
+                Code:
+                ```{request.language}
+                {request.code}
+                ```
+                """
+
+                explanation_result = await asyncio.wait_for(
+                    openai_client.explain_code(explanation_prompt),
+                    timeout=25.0  # 25 second timeout for explanation
+                )
+                break  # Success, exit retry loop
+
+            except asyncio.TimeoutError:
+                if attempt == max_retries - 1:
+                    logger.error("Code explanation timed out after all retries")
+                    raise TimeoutException(
+                        message="Code explanation timed out",
+                        details={"operation": "code_explanation", "attempts": max_retries}
+                    )
+                logger.warning(f"Explanation attempt {attempt + 1} timed out, retrying...")
+                await asyncio.sleep(1)
+
+            except Exception as e:
+                if attempt == max_retries - 1:
+                    logger.error(f"Code explanation failed after all retries: {str(e)}")
+                    raise ServiceUnavailableException(
+                        message="AI explanation service failed",
+                        details={"attempts": max_retries, "last_error": str(e)}
+                    )
+                logger.warning(f"Explanation attempt {attempt + 1} failed: {str(e)}, retrying...")
+                await asyncio.sleep(1)
+
+        # Extract components with error handling
+        try:
+            components = extract_components(request.code, request.language)
+        except Exception as e:
+            logger.warning(f"Component extraction failed: {str(e)}")
+            components = []
+
+        # Analyze data flow with error handling
+        try:
+            data_flow = analyze_data_flow(request.code, request.language)
+        except Exception as e:
+            logger.warning(f"Data flow analysis failed: {str(e)}")
+            data_flow = "Data flow analysis unavailable due to processing error."
+
+        # Extract dependencies with error handling
+        try:
+            dependencies = extract_dependencies(request.code, request.language)
+        except Exception as e:
+            logger.warning(f"Dependency extraction failed: {str(e)}")
+            dependencies = []
+
         return CodeExplanationResponse(
             explanation=explanation_result,
             components=components,
             data_flow=data_flow,
             dependencies=dependencies
         )
-        
+
+    except ValidationException:
+        raise  # Re-raise validation errors
+    except TimeoutException:
+        raise  # Re-raise timeout errors
+    except ServiceUnavailableException:
+        raise  # Re-raise service unavailable errors
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Code explanation failed: {str(e)}")
+        logger.critical(f"Unexpected error in code explanation: {str(e)}", exc_info=True)
+        raise ServiceUnavailableException(
+            message="An unexpected error occurred during code explanation",
+            details={"error_type": type(e).__name__}
+        )
 
 def calculate_quality_score(ast_result: dict, analysis_result: dict) -> float:
     """Calculate a quality score from 0 to 100."""

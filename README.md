@@ -26,7 +26,39 @@ coding-agent/
 
 ## Quick Start
 
-### CLI Usage
+### Backend API (Development)
+
+```bash
+# Navigate to server directory
+cd server
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Create .env file (see server/.env.example)
+cp .env.example .env
+
+# Run the server
+python -m uvicorn api.main:app --reload --host 0.0.0.0 --port 8000
+
+# Access API documentation
+# http://localhost:8000/api/docs
+```
+
+### Docker (Recommended)
+
+```bash
+# Start all services with Docker Compose
+docker-compose up -d
+
+# View logs
+docker-compose logs -f
+
+# Stop services
+docker-compose down
+```
+
+### CLI Usage (Coming Soon)
 
 ```bash
 # Install globally
@@ -37,21 +69,9 @@ coding-agent init my-project
 
 # Get refactoring suggestions
 coding-agent suggest-refactor src/
-
-# Generate tests
-coding-agent generate-test src/components/
-
-# Integrate with services
-coding-agent integrate supabase stripe
 ```
 
-### VS Code Extension
-
-1. Install the "Coding Agent" extension from the VS Code marketplace
-2. Open any project and use `Ctrl+Shift+P` to access commands
-3. Use the guided development features
-
-### Web Interface
+### Web Interface (Coming Soon)
 
 ```bash
 # Start the development server
@@ -85,10 +105,42 @@ cd coding-agent
 
 ## Documentation
 
-- [Architecture Guide](docs/ARCHITECTURE.md)
-- [API Documentation](docs/API.md)
-- [Recipes and Templates](docs/RECIPES.md)
-- [Deployment Guide](docs/DEPLOYMENT.md)
+- **[Production Guide](PRODUCTION_README.md)** - Complete guide to getting production-ready
+- **[Setup Instructions](SETUP.md)** - Detailed setup instructions
+- [Architecture Guide](docs/ARCHITECTURE.md) - System architecture
+- [API Documentation](docs/API.md) - API reference
+- [Recipes and Templates](docs/RECIPES.md) - Project templates
+- [Deployment Guide](docs/DEPLOYMENT.md) - Deployment options
+
+## Current Status
+
+✅ **Backend API** - Fully functional with OpenAI integration (mock mode without API key)  
+✅ **Database** - PostgreSQL schema and migrations ready  
+✅ **Services** - All core services implemented  
+⚠️ **CLI Tool** - In development  
+⚠️ **VS Code Extension** - In development  
+⚠️ **Web UI** - In development
+
+## What's Working Now
+
+- FastAPI backend with full CRUD operations
+- Code analysis and quality assessment
+- Refactoring suggestions
+- Test generation
+- Integration services (Supabase, Stripe, etc.)
+- JWT authentication
+- Cost tracking
+- Docker support
+- Database migrations
+
+## What's Coming Next
+
+- CLI tool release
+- VS Code extension
+- Web UI implementation
+- Comprehensive test suite
+- CI/CD pipeline
+- Additional integrations
 
 ## Contributing
 

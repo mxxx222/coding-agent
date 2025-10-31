@@ -1,0 +1,43 @@
+═══════════════════════════════════════════════════
+  📚 CODING AGENT - NOPEA ALOTTAMISOHJE
+═══════════════════════════════════════════════════
+
+✅ RIIPPUVUUDET ASENNETTU ONNISTUNEESTI!
+
+Nyt sinun täytyy vain käynnistää serveri itse.
+
+═══════════════════════════════════════════════════
+
+📝 SUIHITUTTAVA KÄSKYT TERMINAALISSA:
+
+1. Siirry server-hakemistoon:
+   cd coding-agent/server
+
+2. Aktivoi virtuaaliympäristö:
+   source venv/bin/activate
+
+3. Käynnistä serveri:
+   python run.py
+
+4. Odota kunnes näet:
+   "Application startup complete"
+   "Uvicorn running on http://0.0.0.0:8000"
+
+5. Avaa selaimessa:
+   http://localhost:8000/api/docs
+
+═══════════════════════════════════════════════════
+
+🎉 SILLOIN NÄET:
+- Kauniin Swagger API-dokumentaation
+- Voit testata kaikkia endpointteja suoraan selaimessa
+- Interaktiivisen API:n
+
+═══════════════════════════════════════════════════
+
+📚 LISÄTUTORIAALI:
+Katso: ASENTA_KAYNNISTA.md tai QUICK_START.md
+
+═══════════════════════════════════════════════════
+
+EOF

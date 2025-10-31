@@ -1,0 +1,29 @@
+# Minimal requirements for testing the API
+# Python 3.13 compatible versions
+
+# Core web framework
+fastapi>=0.110.0
+uvicorn[standard]>=0.29.0
+
+# Configuration
+python-dotenv>=1.0.0
+
+# Data validation  
+pydantic>=2.8.0
+
+# OpenAI and LLM
+openai>=1.30.0
+tenacity>=8.5.0
+
+# HTTP client
+httpx>=0.27.0
+
+# Testing
+pytest>=7.4.0
+pytest-asyncio>=0.21.0
+
+# Utilities
+pyyaml>=6.0
+# JWT authentication
+PyJWT>=2.8.0
+

@@ -22,7 +22,7 @@ class VectorStore:
             await self.load_store()
             
             # Initialize embedding service
-            from services.indexer.embeddings import EmbeddingService
+            from .embeddings import EmbeddingService
             self.embedding_service = EmbeddingService()
             await self.embedding_service.initialize()
             

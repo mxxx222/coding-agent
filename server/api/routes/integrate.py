@@ -8,6 +8,7 @@ from services.integrations.stripe import StripeIntegration
 from services.integrations.nextjs import NextJSIntegration
 from services.integrations.fastapi import FastAPIIntegration
 from services.integrations.prefect import PrefectIntegration
+from services.integrations.github import GitHubIntegration
 from api.middleware.auth import get_current_user
 
 router = APIRouter()
@@ -43,7 +44,8 @@ async def get_integrations(current_user: dict = Depends(get_current_user)):
             ("stripe", StripeIntegration),
             ("nextjs", NextJSIntegration),
             ("fastapi", FastAPIIntegration),
-            ("prefect", PrefectIntegration)
+            ("prefect", PrefectIntegration),
+            ("github", GitHubIntegration)
         ]
         
         for service_name, service_class in services:
@@ -192,7 +194,8 @@ def get_integration_service(service: str):
         "stripe": StripeIntegration,
         "nextjs": NextJSIntegration,
         "fastapi": FastAPIIntegration,
-        "prefect": PrefectIntegration
+        "prefect": PrefectIntegration,
+        "github": GitHubIntegration
     }
     
     service_class = services.get(service)

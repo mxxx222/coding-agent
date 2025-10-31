@@ -2,10 +2,18 @@ from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 from typing import List, Optional
 import asyncio
+import logging
 
 from services.llm.openai_client import OpenAIClient
 from services.generator.refactor import RefactorService
 from api.middleware.auth import get_current_user
+from api.middleware.exceptions import (
+    ServiceUnavailableException,
+    ValidationException,
+    TimeoutException
+)
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -37,56 +45,139 @@ async def suggest_refactor(
 ):
     """Get AI-powered refactoring suggestions for code."""
     try:
-        refactor_service = RefactorService()
-        openai_client = OpenAIClient()
-        
-        # Analyze code for refactoring opportunities
-        analysis_prompt = f"""
-        Analyze the following code for refactoring opportunities:
-        
-        Code:
-        ```{request.language}
-        {request.code}
-        ```
-        
-        File: {request.file_path}
-        Focus areas: {', '.join(request.focus_areas)}
-        
-        Provide specific refactoring suggestions with:
-        1. Type of refactoring (performance, readability, maintainability, security, best-practice)
-        2. Severity level (low, medium, high)
-        3. Clear title and description
-        4. Current code snippet
-        5. Suggested improved code
-        6. Reasoning for the change
-        7. Line number if applicable
-        """
-        
-        analysis_result = await openai_client.analyze_code(analysis_prompt)
-        
-        # Parse suggestions from AI response
-        suggestions = parse_refactor_suggestions(analysis_result, request.code)
-        
+        # Validate input
+        if not request.code or not request.code.strip():
+            raise ValidationException(
+                message="Code content cannot be empty",
+                details={"field": "code"}
+            )
+
+        if len(request.code) > 100000:  # 100KB limit
+            raise ValidationException(
+                message="Code content exceeds maximum size limit",
+                details={"max_size": "100KB", "actual_size": f"{len(request.code)} chars"}
+            )
+
+        if not request.file_path or not request.file_path.strip():
+            raise ValidationException(
+                message="File path cannot be empty",
+                details={"field": "file_path"}
+            )
+
+        # Validate focus areas
+        valid_focus_areas = ["performance", "readability", "maintainability", "security", "best-practice"]
+        invalid_areas = [area for area in request.focus_areas if area not in valid_focus_areas]
+        if invalid_areas:
+            raise ValidationException(
+                message=f"Invalid focus areas: {', '.join(invalid_areas)}",
+                details={"valid_areas": valid_focus_areas, "invalid_areas": invalid_areas}
+            )
+
+        # Initialize services
+        try:
+            refactor_service = RefactorService()
+            openai_client = OpenAIClient()
+        except Exception as e:
+            logger.error(f"Failed to initialize refactoring services: {str(e)}")
+            raise ServiceUnavailableException(
+                message="Refactoring services are currently unavailable",
+                details={"service": "refactor_services"}
+            )
+
+        # Analyze code for refactoring opportunities with timeout and retry
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                analysis_prompt = f"""
+                Analyze the following code for refactoring opportunities:
+
+                Code:
+                ```{request.language}
+                {request.code}
+                ```
+
+                File: {request.file_path}
+                Focus areas: {', '.join(request.focus_areas)}
+
+                Provide specific refactoring suggestions with:
+                1. Type of refactoring (performance, readability, maintainability, security, best-practice)
+                2. Severity level (low, medium, high)
+                3. Clear title and description
+                4. Current code snippet
+                5. Suggested improved code
+                6. Reasoning for the change
+                7. Line number if applicable
+                """
+
+                analysis_result = await asyncio.wait_for(
+                    openai_client.analyze_code(analysis_prompt),
+                    timeout=30.0  # 30 second timeout for analysis
+                )
+                break  # Success, exit retry loop
+
+            except asyncio.TimeoutError:
+                if attempt == max_retries - 1:
+                    logger.error("Refactoring analysis timed out after all retries")
+                    raise TimeoutException(
+                        message="Refactoring analysis timed out",
+                        details={"operation": "refactor_analysis", "attempts": max_retries}
+                    )
+                logger.warning(f"Analysis attempt {attempt + 1} timed out, retrying...")
+                await asyncio.sleep(1)
+
+            except Exception as e:
+                if attempt == max_retries - 1:
+                    logger.error(f"Refactoring analysis failed after all retries: {str(e)}")
+                    raise ServiceUnavailableException(
+                        message="AI analysis service failed for refactoring",
+                        details={"attempts": max_retries, "last_error": str(e)}
+                    )
+                logger.warning(f"Analysis attempt {attempt + 1} failed: {str(e)}, retrying...")
+                await asyncio.sleep(1)
+
+        # Parse suggestions from AI response with error handling
+        try:
+            suggestions = parse_refactor_suggestions(analysis_result, request.code)
+        except Exception as e:
+            logger.warning(f"Failed to parse refactoring suggestions: {str(e)}")
+            suggestions = []
+
         # Calculate confidence score
         confidence_score = calculate_confidence_score(suggestions)
-        
-        # Generate refactored code if requested
+
+        # Generate refactored code if requested and suggestions exist
         refactored_code = None
         if len(suggestions) > 0:
-            refactored_code = await generate_refactored_code(
-                request.code, 
-                suggestions, 
-                openai_client
-            )
-        
+            try:
+                refactored_code = await asyncio.wait_for(
+                    generate_refactored_code(request.code, suggestions, openai_client),
+                    timeout=45.0  # 45 second timeout for code generation
+                )
+            except asyncio.TimeoutError:
+                logger.warning("Refactored code generation timed out")
+                # Continue without refactored code
+            except Exception as e:
+                logger.warning(f"Refactored code generation failed: {str(e)}")
+                # Continue without refactored code
+
         return RefactorResponse(
             suggestions=suggestions,
             refactored_code=refactored_code,
             confidence_score=confidence_score
         )
-        
+
+    except ValidationException:
+        raise  # Re-raise validation errors
+    except TimeoutException:
+        raise  # Re-raise timeout errors
+    except ServiceUnavailableException:
+        raise  # Re-raise service unavailable errors
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Refactoring analysis failed: {str(e)}")
+        logger.critical(f"Unexpected error in refactoring: {str(e)}", exc_info=True)
+        raise ServiceUnavailableException(
+            message="An unexpected error occurred during refactoring analysis",
+            details={"error_type": type(e).__name__}
+        )
 
 @router.post("/apply", response_model=dict)
 async def apply_refactor(
@@ -96,29 +187,81 @@ async def apply_refactor(
 ):
     """Apply a specific refactoring suggestion."""
     try:
-        refactor_service = RefactorService()
-        
-        # Get the specific suggestion
-        suggestions = await refactor_service.get_suggestions(request.code, request.language)
+        # Validate input
+        if not request.code or not request.code.strip():
+            raise ValidationException(
+                message="Code content cannot be empty",
+                details={"field": "code"}
+            )
+
+        if not suggestion_id or not suggestion_id.strip():
+            raise ValidationException(
+                message="Suggestion ID cannot be empty",
+                details={"field": "suggestion_id"}
+            )
+
+        # Initialize refactor service
+        try:
+            refactor_service = RefactorService()
+        except Exception as e:
+            logger.error(f"Failed to initialize refactor service: {str(e)}")
+            raise ServiceUnavailableException(
+                message="Refactoring service is currently unavailable",
+                details={"service": "refactor_service"}
+            )
+
+        # Get the specific suggestion with timeout
+        try:
+            suggestions = await asyncio.wait_for(
+                refactor_service.get_suggestions(request.code, request.language),
+                timeout=15.0  # 15 second timeout for getting suggestions
+            )
+        except asyncio.TimeoutError:
+            logger.error("Getting refactoring suggestions timed out")
+            raise TimeoutException(
+                message="Failed to retrieve refactoring suggestions",
+                details={"operation": "get_suggestions", "timeout_seconds": 15.0}
+            )
+
         suggestion = next((s for s in suggestions if s.get('id') == suggestion_id), None)
-        
+
         if not suggestion:
-            raise HTTPException(status_code=404, detail="Suggestion not found")
-        
-        # Apply the refactoring
-        refactored_code = await refactor_service.apply_suggestion(
-            request.code, 
-            suggestion
-        )
-        
+            raise ValidationException(
+                message="Suggestion not found",
+                details={"suggestion_id": suggestion_id, "available_suggestions": len(suggestions)}
+            )
+
+        # Apply the refactoring with timeout
+        try:
+            refactored_code = await asyncio.wait_for(
+                refactor_service.apply_suggestion(request.code, suggestion),
+                timeout=30.0  # 30 second timeout for applying suggestion
+            )
+        except asyncio.TimeoutError:
+            logger.error("Applying refactoring suggestion timed out")
+            raise TimeoutException(
+                message="Failed to apply refactoring suggestion",
+                details={"operation": "apply_suggestion", "suggestion_id": suggestion_id}
+            )
+
         return {
             "success": True,
             "refactored_code": refactored_code,
             "applied_suggestion": suggestion
         }
-        
+
+    except ValidationException:
+        raise  # Re-raise validation errors
+    except TimeoutException:
+        raise  # Re-raise timeout errors
+    except ServiceUnavailableException:
+        raise  # Re-raise service unavailable errors
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to apply refactoring: {str(e)}")
+        logger.critical(f"Unexpected error applying refactoring: {str(e)}", exc_info=True)
+        raise ServiceUnavailableException(
+            message="An unexpected error occurred while applying refactoring",
+            details={"error_type": type(e).__name__, "suggestion_id": suggestion_id}
+        )
 
 def parse_refactor_suggestions(analysis_result: dict, original_code: str) -> List[dict]:
     """Parse AI response into structured suggestions."""

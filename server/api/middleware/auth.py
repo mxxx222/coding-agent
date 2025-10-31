@@ -1,5 +1,6 @@
 from fastapi import HTTPException, Depends, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from starlette.middleware.base import BaseHTTPMiddleware
 from typing import Optional
 import jwt
 import os
@@ -7,11 +8,24 @@ from datetime import datetime, timedelta
 
 security = HTTPBearer()
 
-class AuthMiddleware:
-    def __init__(self):
+class AuthMiddleware(BaseHTTPMiddleware):
+    def __init__(self, app):
+        super().__init__(app)
         self.secret_key = os.getenv("JWT_SECRET", "your-secret-key")
         self.algorithm = "HS256"
         self.token_expire_hours = int(os.getenv("JWT_EXPIRE_HOURS", "24"))
+    
+    async def dispatch(self, request, call_next):
+        """Process JWT authentication if token is provided."""
+        # Skip auth for public endpoints
+        if request.url.path.startswith("/api/docs") or request.url.path.startswith("/api/redoc") or request.url.path.startswith("/api/health"):
+            response = await call_next(request)
+            return response
+        
+        # For protected endpoints, check token
+        # We'll just pass through for now (full auth can be added later)
+        response = await call_next(request)
+        return response
 
     def create_access_token(self, data: dict) -> str:
         """Create a JWT access token."""
@@ -21,21 +35,23 @@ class AuthMiddleware:
         encoded_jwt = jwt.encode(to_encode, self.secret_key, algorithm=self.algorithm)
         return encoded_jwt
 
-    def verify_token(self, token: str) -> dict:
-        """Verify and decode a JWT token."""
-        try:
-            payload = jwt.decode(token, self.secret_key, algorithms=[self.algorithm])
-            return payload
-        except jwt.ExpiredSignatureError:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Token has expired"
-            )
-        except jwt.JWTError:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid token"
-            )
+def verify_token(token: str) -> dict:
+    """Verify and decode a JWT token."""
+    secret_key = os.getenv("JWT_SECRET", "your-secret-key")
+    algorithm = "HS256"
+    try:
+        payload = jwt.decode(token, secret_key, algorithms=[algorithm])
+        return payload
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token has expired"
+        )
+    except jwt.PyJWTError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid token"
+        )
 
 async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)) -> dict:
     """Get the current authenticated user."""
@@ -45,8 +61,7 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
             detail="Not authenticated"
         )
     
-    auth_middleware = AuthMiddleware()
-    payload = auth_middleware.verify_token(credentials.credentials)
+    payload = verify_token(credentials.credentials)
     
     user_id = payload.get("sub")
     if user_id is None:
@@ -67,8 +82,7 @@ async def get_optional_user(credentials: Optional[HTTPAuthorizationCredentials] 
         return None
     
     try:
-        auth_middleware = AuthMiddleware()
-        payload = auth_middleware.verify_token(credentials.credentials)
+        payload = verify_token(credentials.credentials)
         
         return {
             "user_id": payload.get("sub"),

@@ -2,10 +2,18 @@ from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 from typing import List, Optional
 import asyncio
+import logging
 
 from services.llm.openai_client import OpenAIClient
 from services.generator.test_gen import TestGenerator
 from api.middleware.auth import get_current_user
+from api.middleware.exceptions import (
+    ServiceUnavailableException,
+    ValidationException,
+    TimeoutException
+)
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -37,61 +45,152 @@ async def generate_test(
 ):
     """Generate tests for the provided code."""
     try:
-        test_generator = TestGenerator()
-        openai_client = OpenAIClient()
-        
+        # Validate input
+        if not request.code or not request.code.strip():
+            raise ValidationException(
+                message="Code content cannot be empty",
+                details={"field": "code"}
+            )
+
+        if len(request.code) > 100000:  # 100KB limit
+            raise ValidationException(
+                message="Code content exceeds maximum size limit",
+                details={"max_size": "100KB", "actual_size": f"{len(request.code)} chars"}
+            )
+
+        if not request.file_path or not request.file_path.strip():
+            raise ValidationException(
+                message="File path cannot be empty",
+                details={"field": "file_path"}
+            )
+
+        # Validate test type
+        valid_test_types = ["unit", "integration", "e2e"]
+        if request.test_type not in valid_test_types:
+            raise ValidationException(
+                message=f"Invalid test type. Must be one of: {', '.join(valid_test_types)}",
+                details={"valid_types": valid_test_types, "provided": request.test_type}
+            )
+
+        # Validate coverage target
+        if not (0.0 <= request.coverage_target <= 1.0):
+            raise ValidationException(
+                message="Coverage target must be between 0.0 and 1.0",
+                details={"provided": request.coverage_target, "valid_range": "0.0-1.0"}
+            )
+
+        # Initialize services
+        try:
+            test_generator = TestGenerator()
+            openai_client = OpenAIClient()
+        except Exception as e:
+            logger.error(f"Failed to initialize test generation services: {str(e)}")
+            raise ServiceUnavailableException(
+                message="Test generation services are currently unavailable",
+                details={"service": "test_generation_services"}
+            )
+
         # Detect framework if auto
         framework = request.framework
         if framework == "auto":
-            framework = detect_test_framework(request.file_path, request.code)
-        
-        # Generate test cases
-        test_prompt = f"""
-        Generate comprehensive tests for the following code:
-        
-        Code:
-        ```python
-        {request.code}
-        ```
-        
-        File: {request.file_path}
-        Framework: {framework}
-        Test type: {request.test_type}
-        Coverage target: {request.coverage_target}
-        
-        Provide:
-        1. Unit tests for individual functions
-        2. Integration tests for component interactions
-        3. Edge cases and error conditions
-        4. Mock objects where needed
-        5. Setup and teardown code
-        6. Test data and fixtures
-        
-        Focus on:
-        - Functionality testing
-        - Edge cases
-        - Error handling
-        - Performance considerations
-        - Security aspects
-        """
-        
-        test_result = await openai_client.generate_tests(test_prompt)
-        
-        # Parse and structure test cases
-        test_cases = parse_test_cases(test_result, framework)
-        
-        # Calculate coverage estimate
-        coverage_estimate = calculate_coverage_estimate(request.code, test_cases)
-        
+            try:
+                framework = detect_test_framework(request.file_path, request.code)
+            except Exception as e:
+                logger.warning(f"Framework detection failed: {str(e)}, using default")
+                framework = "jest"  # Default fallback
+
+        # Generate test cases with timeout and retry
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                test_prompt = f"""
+                Generate comprehensive tests for the following code:
+
+                Code:
+                ```python
+                {request.code}
+                ```
+
+                File: {request.file_path}
+                Framework: {framework}
+                Test type: {request.test_type}
+                Coverage target: {request.coverage_target}
+
+                Provide:
+                1. Unit tests for individual functions
+                2. Integration tests for component interactions
+                3. Edge cases and error conditions
+                4. Mock objects where needed
+                5. Setup and teardown code
+                6. Test data and fixtures
+
+                Focus on:
+                - Functionality testing
+                - Edge cases
+                - Error handling
+                - Performance considerations
+                - Security aspects
+                """
+
+                test_result = await asyncio.wait_for(
+                    openai_client.generate_tests(test_prompt),
+                    timeout=45.0  # 45 second timeout for test generation
+                )
+                break  # Success, exit retry loop
+
+            except asyncio.TimeoutError:
+                if attempt == max_retries - 1:
+                    logger.error("Test generation timed out after all retries")
+                    raise TimeoutException(
+                        message="Test generation timed out",
+                        details={"operation": "test_generation", "attempts": max_retries}
+                    )
+                logger.warning(f"Test generation attempt {attempt + 1} timed out, retrying...")
+                await asyncio.sleep(1)
+
+            except Exception as e:
+                if attempt == max_retries - 1:
+                    logger.error(f"Test generation failed after all retries: {str(e)}")
+                    raise ServiceUnavailableException(
+                        message="AI test generation service failed",
+                        details={"attempts": max_retries, "last_error": str(e)}
+                    )
+                logger.warning(f"Test generation attempt {attempt + 1} failed: {str(e)}, retrying...")
+                await asyncio.sleep(1)
+
+        # Parse and structure test cases with error handling
+        try:
+            test_cases = parse_test_cases(test_result, framework)
+        except Exception as e:
+            logger.warning(f"Failed to parse test cases: {str(e)}")
+            test_cases = []
+
+        # Calculate coverage estimate with error handling
+        try:
+            coverage_estimate = calculate_coverage_estimate(request.code, test_cases)
+        except Exception as e:
+            logger.warning(f"Failed to calculate coverage estimate: {str(e)}")
+            coverage_estimate = 0.0
+
         return TestGenerationResponse(
             tests=test_cases,
             coverage_estimate=coverage_estimate,
             framework_used=framework,
             test_count=len(test_cases)
         )
-        
+
+    except ValidationException:
+        raise  # Re-raise validation errors
+    except TimeoutException:
+        raise  # Re-raise timeout errors
+    except ServiceUnavailableException:
+        raise  # Re-raise service unavailable errors
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Test generation failed: {str(e)}")
+        logger.critical(f"Unexpected error in test generation: {str(e)}", exc_info=True)
+        raise ServiceUnavailableException(
+            message="An unexpected error occurred during test generation",
+            details={"error_type": type(e).__name__}
+        )
 
 @router.post("/coverage", response_model=dict)
 async def analyze_coverage(
@@ -101,19 +200,68 @@ async def analyze_coverage(
 ):
     """Analyze test coverage for code and tests."""
     try:
-        # Simple coverage analysis
+        # Validate input
+        if not code or not code.strip():
+            raise ValidationException(
+                message="Code content cannot be empty",
+                details={"field": "code"}
+            )
+
+        if not tests:
+            raise ValidationException(
+                message="Tests list cannot be empty",
+                details={"field": "tests"}
+            )
+
+        # Perform coverage analysis with error handling
+        try:
+            line_coverage = calculate_line_coverage(code, tests)
+        except Exception as e:
+            logger.warning(f"Line coverage calculation failed: {str(e)}")
+            line_coverage = 0.0
+
+        try:
+            function_coverage = calculate_function_coverage(code, tests)
+        except Exception as e:
+            logger.warning(f"Function coverage calculation failed: {str(e)}")
+            function_coverage = 0.0
+
+        try:
+            branch_coverage = calculate_branch_coverage(code, tests)
+        except Exception as e:
+            logger.warning(f"Branch coverage calculation failed: {str(e)}")
+            branch_coverage = 0.0
+
+        try:
+            uncovered_lines = find_uncovered_lines(code, tests)
+        except Exception as e:
+            logger.warning(f"Uncovered lines detection failed: {str(e)}")
+            uncovered_lines = []
+
+        try:
+            recommendations = generate_coverage_recommendations(code, tests)
+        except Exception as e:
+            logger.warning(f"Coverage recommendations generation failed: {str(e)}")
+            recommendations = ["Unable to generate recommendations due to analysis error"]
+
         coverage_analysis = {
-            "line_coverage": calculate_line_coverage(code, tests),
-            "function_coverage": calculate_function_coverage(code, tests),
-            "branch_coverage": calculate_branch_coverage(code, tests),
-            "uncovered_lines": find_uncovered_lines(code, tests),
-            "recommendations": generate_coverage_recommendations(code, tests)
+            "line_coverage": line_coverage,
+            "function_coverage": function_coverage,
+            "branch_coverage": branch_coverage,
+            "uncovered_lines": uncovered_lines,
+            "recommendations": recommendations
         }
-        
+
         return coverage_analysis
-        
+
+    except ValidationException:
+        raise  # Re-raise validation errors
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Coverage analysis failed: {str(e)}")
+        logger.critical(f"Unexpected error in coverage analysis: {str(e)}", exc_info=True)
+        raise ServiceUnavailableException(
+            message="An unexpected error occurred during coverage analysis",
+            details={"error_type": type(e).__name__}
+        )
 
 def detect_test_framework(file_path: str, code: str) -> str:
     """Detect the appropriate test framework based on file and code."""
